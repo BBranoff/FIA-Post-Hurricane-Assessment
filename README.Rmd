@@ -125,15 +125,19 @@ These will be our artificial 'strata', and we will need to know the total area i
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
-Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.02)),crs(Helene_Cat))))
+Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.01)),crs(Helene_Cat))))
 ##  now calculate area of each wind zone
 ##  important to do this while the raster is in projected, not geographic, coordinates
-Areas <- table(values(Helene_Cat_plots ))
+##  also important to do by state, as this is how the evaluation is done
+Areas12 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==12),crs(Helene_Cat_plots)))))
+Areas13 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==13),crs(Helene_Cat_plots)))))
+Areas <- rbind(data.frame(Areas12)|>mutate(STATECD=12),
+               data.frame(Areas13)|>mutate(STATECD=13))
 ##  this is the number of pixels of each wind zone
 ##  multiply by the raster resolution to get the area, in square meters
-Areas <- Areas*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2]
+Areas$Freq <- Areas$Freq*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2]
 ##  then convert to acres
-Areas <- Areas/4046.86
+Areas$Acres <- Areas$Freq/4046.86
 
 ###  project onto geographic coordinates
 Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
@@ -149,7 +153,7 @@ necessary tables and calculate the desired estimates.
 
 Beginning with assembling the necessary tables. Forested area is likely the most straight forward. We will get the 
 forested acreage of each plot and, using a custom expansion factor, estimate the total forested acreage in each wind zone.
-```{r evalidator_f,eval=TRUE}
+```{r evalidator_f,eval=TRUE,echo=FALSE}
 fiadb_api_GET = function(url){
 
   # make request
@@ -194,9 +198,9 @@ format_estimate = function(respList) {
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
 plots_geo<- plots_geo |>
-  left_join(as.data.frame(Areas)|>rename(Acres=Freq),by=join_by(WindZone==Var1))|>
+  left_join(Areas,by=join_by(WindZone==Var1,STATECD))|>
   group_by(WindZone)|>
-  mutate(EXPNS_new = Acres/n())
+  mutate(EXPNS_new = Acres/length(unique(CN)))
 
 ##  first testing the concept on the full evaluation with the original expansion factors
 ForestedAcres <- plots_geo |>
@@ -241,11 +245,13 @@ HeleneAcres <- rbind(HeleneAcres,
                      HeleneAcres|>mutate(FORTYP="All"),
                      HeleneAcres|>mutate(County="All"))|>
   group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
-  summarise(nplots=n(),
+  summarise(nplots=length(unique(CN)),
             ForestedAcres=sum(ForestedAcres*EXPNS_new))
   
 HeleneAcres|>filter(EVAL_GRP==122024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
 fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
+HeleneAcres|>filter(EVAL_GRP==132024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
 ```
 
 The new total acreage does not match the total acreage from EVALIDATOR. There are 55 plots that are not in any wind zone, which is part of the reason but
