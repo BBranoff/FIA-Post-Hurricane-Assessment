@@ -125,7 +125,7 @@ These will be our artificial 'strata', and we will need to know the total area i
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
-Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.01)),crs(Helene_Cat))))
+Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.001)),crs(Helene_Cat))))
 ##  now calculate area of each wind zone
 ##  important to do this while the raster is in projected, not geographic, coordinates
 ##  also important to do by state, as this is how the evaluation is done
@@ -254,5 +254,3 @@ HeleneAcres|>filter(EVAL_GRP==132024,FORTYP=="All",County=="All")|>pull(Forested
 fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
 ```
 
-The new total acreage does not match the total acreage from EVALIDATOR. There are 55 plots that are not in any wind zone, which is part of the reason but
-the total is about half the EVALIDATOR total, which suggests there is something else missing. 

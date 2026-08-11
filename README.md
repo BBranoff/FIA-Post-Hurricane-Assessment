@@ -20,7 +20,7 @@ Their trees and reference tables will be joined later.
 ``` r
 library(DBI)
 myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
-vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
+vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
                     "c.condid,c.cond_status_cd,c.owncd,c.fortypcd,c.condprop_unadj,c.prop_basis,",
               "ps.evalid,ps.estn_unit_cn,ps.adj_factor_macr,ps.adj_factor_subp,ps.expns,",
               "pps.stratum_cn ")
@@ -69,6 +69,16 @@ INVYR
 <th style="text-align:right;">
 
 EVAL_GRP
+</th>
+
+<th style="text-align:right;">
+
+STATECD
+</th>
+
+<th style="text-align:right;">
+
+COUNTYCD
 </th>
 
 <th style="text-align:right;">
@@ -191,27 +201,37 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
+13
+</td>
+
+<td style="text-align:right;">
+
+71
+</td>
+
+<td style="text-align:right;">
+
 2025
 </td>
 
 <td style="text-align:right;">
 
-10
+12
 </td>
 
 <td style="text-align:right;">
 
-27
+16
 </td>
 
 <td style="text-align:right;">
 
-32.00675
+31.21841
 </td>
 
 <td style="text-align:right;">
 
--82.74630
+-83.92017
 </td>
 
 <td style="text-align:right;">
@@ -231,12 +251,12 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-602
+142
 </td>
 
 <td style="text-align:right;">
 
-0.750000
+0.811593
 </td>
 
 <td style="text-align:left;">
@@ -251,7 +271,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.99555e+15
+1.995550e+15
 </td>
 
 <td style="text-align:right;">
@@ -261,12 +281,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1.000346
+1.000000
 </td>
 
 <td style="text-align:right;">
 
-5798.479
+6042.554
 </td>
 
 <td style="text-align:right;">
@@ -305,27 +325,42 @@ SUBP
 
 <td style="text-align:right;">
 
-2025
+13
 </td>
 
 <td style="text-align:right;">
 
-7
+241
 </td>
 
 <td style="text-align:right;">
 
-25
+2026
 </td>
 
 <td style="text-align:right;">
 
-31.35273
+3
 </td>
 
 <td style="text-align:right;">
 
--83.00512
+3
+</td>
+
+<td style="text-align:right;">
+
+34.93850
+</td>
+
+<td style="text-align:right;">
+
+-83.22374
+</td>
+
+<td style="text-align:right;">
+
+2
 </td>
 
 <td style="text-align:right;">
@@ -335,22 +370,17 @@ SUBP
 
 <td style="text-align:right;">
 
-1
+11
 </td>
 
 <td style="text-align:right;">
 
-46
+167
 </td>
 
 <td style="text-align:right;">
 
-608
-</td>
-
-<td style="text-align:right;">
-
-0.750000
+0.250000
 </td>
 
 <td style="text-align:left;">
@@ -365,7 +395,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.99555e+15
+1.995550e+15
 </td>
 
 <td style="text-align:right;">
@@ -375,12 +405,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1.000346
+1.007874
 </td>
 
 <td style="text-align:right;">
 
-5798.479
+2107.495
 </td>
 
 <td style="text-align:right;">
@@ -419,27 +449,37 @@ SUBP
 
 <td style="text-align:right;">
 
+13
+</td>
+
+<td style="text-align:right;">
+
+257
+</td>
+
+<td style="text-align:right;">
+
 2025
 </td>
 
 <td style="text-align:right;">
 
-7
+11
 </td>
 
 <td style="text-align:right;">
 
-25
+12
 </td>
 
 <td style="text-align:right;">
 
-31.35273
+34.60586
 </td>
 
 <td style="text-align:right;">
 
--83.00512
+-83.34580
 </td>
 
 <td style="text-align:right;">
@@ -459,7 +499,7 @@ SUBP
 
 <td style="text-align:right;">
 
-608
+406
 </td>
 
 <td style="text-align:right;">
@@ -479,7 +519,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.99555e+15
+1.995550e+15
 </td>
 
 <td style="text-align:right;">
@@ -489,12 +529,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1.000346
+1.005641
 </td>
 
 <td style="text-align:right;">
 
-5798.479
+5682.163
 </td>
 
 <td style="text-align:right;">
@@ -513,7 +553,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.682647e+15
+7.185616e+14
 </td>
 
 <td style="text-align:right;">
@@ -523,22 +563,12 @@ SUBP
 
 <td style="text-align:right;">
 
-2025
+2020
 </td>
 
 <td style="text-align:right;">
 
-132025
-</td>
-
-<td style="text-align:right;">
-
-2026
-</td>
-
-<td style="text-align:right;">
-
-1
+132024
 </td>
 
 <td style="text-align:right;">
@@ -548,12 +578,280 @@ SUBP
 
 <td style="text-align:right;">
 
-31.58309
+81
 </td>
 
 <td style="text-align:right;">
 
--82.77409
+2021
+</td>
+
+<td style="text-align:right;">
+
+3
+</td>
+
+<td style="text-align:right;">
+
+15
+</td>
+
+<td style="text-align:right;">
+
+31.96445
+</td>
+
+<td style="text-align:right;">
+
+-83.86866
+</td>
+
+<td style="text-align:right;">
+
+2
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+46
+</td>
+
+<td style="text-align:right;">
+
+161
+</td>
+
+<td style="text-align:right;">
+
+0.751377
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132401
+</td>
+
+<td style="text-align:right;">
+
+1.898605e+15
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.001051
+</td>
+
+<td style="text-align:right;">
+
+6171.515
+</td>
+
+<td style="text-align:right;">
+
+1.898560e+15
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:right;">
+
+5
+</td>
+
+<td style="text-align:right;">
+
+7.185621e+14
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+2020
+</td>
+
+<td style="text-align:right;">
+
+132024
+</td>
+
+<td style="text-align:right;">
+
+13
+</td>
+
+<td style="text-align:right;">
+
+29
+</td>
+
+<td style="text-align:right;">
+
+2020
+</td>
+
+<td style="text-align:right;">
+
+12
+</td>
+
+<td style="text-align:right;">
+
+21
+</td>
+
+<td style="text-align:right;">
+
+32.03989
+</td>
+
+<td style="text-align:right;">
+
+-81.40135
+</td>
+
+<td style="text-align:right;">
+
+2
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+24
+</td>
+
+<td style="text-align:right;">
+
+142
+</td>
+
+<td style="text-align:right;">
+
+0.180791
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132401
+</td>
+
+<td style="text-align:right;">
+
+1.898605e+15
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.000000
+</td>
+
+<td style="text-align:right;">
+
+6403.255
+</td>
+
+<td style="text-align:right;">
+
+1.898560e+15
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:right;">
+
+6
+</td>
+
+<td style="text-align:right;">
+
+7.185621e+14
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+2020
+</td>
+
+<td style="text-align:right;">
+
+132024
+</td>
+
+<td style="text-align:right;">
+
+13
+</td>
+
+<td style="text-align:right;">
+
+179
+</td>
+
+<td style="text-align:right;">
+
+2020
+</td>
+
+<td style="text-align:right;">
+
+7
+</td>
+
+<td style="text-align:right;">
+
+8
+</td>
+
+<td style="text-align:right;">
+
+31.89181
+</td>
+
+<td style="text-align:right;">
+
+-81.47138
 </td>
 
 <td style="text-align:right;">
@@ -573,12 +871,12 @@ SUBP
 
 <td style="text-align:right;">
 
-142
+161
 </td>
 
 <td style="text-align:right;">
 
-0.500000
+0.990922
 </td>
 
 <td style="text-align:left;">
@@ -588,12 +886,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132501
+132401
 </td>
 
 <td style="text-align:right;">
 
-1.99555e+15
+1.898605e+15
 </td>
 
 <td style="text-align:right;">
@@ -613,235 +911,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.995523e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-5
-</td>
-
-<td style="text-align:right;">
-
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-2025
-</td>
-
-<td style="text-align:right;">
-
-132025
-</td>
-
-<td style="text-align:right;">
-
-2026
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-28
-</td>
-
-<td style="text-align:right;">
-
-33.77128
-</td>
-
-<td style="text-align:right;">
-
--83.06053
-</td>
-
-<td style="text-align:right;">
-
-2
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-46
-</td>
-
-<td style="text-align:right;">
-
-999
-</td>
-
-<td style="text-align:right;">
-
-0.250000
-</td>
-
-<td style="text-align:left;">
-
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132501
-</td>
-
-<td style="text-align:right;">
-
-1.99555e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1.001336
-</td>
-
-<td style="text-align:right;">
-
-5872.472
-</td>
-
-<td style="text-align:right;">
-
-1.995523e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-6
-</td>
-
-<td style="text-align:right;">
-
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-2025
-</td>
-
-<td style="text-align:right;">
-
-132025
-</td>
-
-<td style="text-align:right;">
-
-2025
-</td>
-
-<td style="text-align:right;">
-
-11
-</td>
-
-<td style="text-align:right;">
-
-6
-</td>
-
-<td style="text-align:right;">
-
-31.89829
-</td>
-
-<td style="text-align:right;">
-
--84.23754
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-46
-</td>
-
-<td style="text-align:right;">
-
-608
-</td>
-
-<td style="text-align:right;">
-
-0.859769
-</td>
-
-<td style="text-align:left;">
-
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132501
-</td>
-
-<td style="text-align:right;">
-
-1.99555e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1.000934
-</td>
-
-<td style="text-align:right;">
-
-5857.771
-</td>
-
-<td style="text-align:right;">
-
-1.995523e+15
+1.898560e+15
 </td>
 
 </tr>
@@ -893,7 +963,7 @@ Helene_extents <- make_extents(Helene,t_res=30)
 Helene_winds <- get_wind(Helene_extents,method="Boose",agg=TRUE,s_res=5000)
 ###  classify the maximum wind speed into the Saffir-Simpson scale
 Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
-                       matrix(c(0,33,NA,
+                       matrix(c(0,33,0,
                                 33,43,1,
                                 43,50,2,
                                 50,60,3,
@@ -919,15 +989,19 @@ order to calculate the expansion factors.
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
-Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.02)),crs(Helene_Cat))))
+Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.01)),crs(Helene_Cat))))
 ##  now calculate area of each wind zone
 ##  important to do this while the raster is in projected, not geographic, coordinates
-Areas <- table(values(Helene_Cat_plots ))
+##  also important to do by state, as this is how the evaluation is done
+Areas12 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==12),crs(Helene_Cat_plots)))))
+Areas13 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==13),crs(Helene_Cat_plots)))))
+Areas <- rbind(data.frame(Areas12)|>mutate(STATECD=12),
+               data.frame(Areas13)|>mutate(STATECD=13))
 ##  this is the number of pixels of each wind zone
 ##  multiply by the raster resolution to get the area, in square meters
-Areas <- Areas*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2]
+Areas$Freq <- Areas$Freq*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2]
 ##  then convert to acres
-Areas <- Areas/4046.86
+Areas$Acres <- Areas$Freq/4046.86
 
 ###  project onto geographic coordinates
 Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
@@ -957,54 +1031,12 @@ and, using a custom expansion factor, estimate the total forested
 acreage in each wind zone.
 
 ``` r
-fiadb_api_GET = function(url){
-
-  # make request
-  resp <- httr::GET(url=url)
-  # parse response from JSON to R list
-  respObj <- httr::content(resp, "parsed", encoding = "ISO-8859-1")
-
-  # create empty output list
-  outputList = list()
-
-  # add estimates data frame to output list
-  if (! is.null(respObj$estimates)) {
-      outputList$estimates <- format_estimate(respObj$estimates)
-  } else  {
-      print("Problem with URL or API. No estimate returned.")
-      return(list())
-  }
-
-
-  #Use lapply to break apart subtotal list, then call sapply to format with names
-  if (! is.null(respObj$subtotals))
-        outputList$subtotals <- sapply(lapply(respObj$subtotals, "["),
-                                       format_estimate, simplify = F, USE.NAMES = T)
-
-  # totals data frame
-  if (! is.null(respObj$totals))
-    outputList$totals <- format_estimate(respObj$totals)
-
-
-  # add estimate metadata, doesn't need to be reformatted
-  if (! is.null(respObj$metadata)) outputList$metadata <- respObj$metadata
-
-  return(outputList)
-}
-format_estimate = function(respList) {
-
-  return(as.data.frame(do.call(rbind, respList)))
-
-}
-```
-
-``` r
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
 plots_geo<- plots_geo |>
-  left_join(as.data.frame(Areas)|>rename(Acres=Freq),by=join_by(WindZone==Var1))|>
+  left_join(Areas,by=join_by(WindZone==Var1,STATECD))|>
   group_by(WindZone)|>
-  mutate(EXPNS_new = Acres/n())
+  mutate(EXPNS_new = Acres/length(unique(CN)))
 
 ##  first testing the concept on the full evaluation with the original expansion factors
 ForestedAcres <- plots_geo |>
@@ -1040,5 +1072,66 @@ fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=1320
     ## $ESTIMATE
     ## [1] 24088910
 
-Evalidator shows 16,679,484 acres for 122024 and 24,088,910 acres for
-132024
+From the above, the DIY ad-hoc estimate matches the total forested acres
+for these two evaluations from EVALIDATOR. To apply it to our custom
+stata (wind zones), we only need to change the EXPNS from the full
+evaluation tables to our custom EXPNS_new that we calculated based on
+the calculated area of the strata and the number of plots in each
+strata.
+
+We also add in the common request that this be done by county and by
+forest type, although we limit the forest type to only the most common
+requested types.
+
+``` r
+##  first testing the concept on the full evaluation with the original expansion factors
+HeleneAcres <- plots_geo |>st_drop_geometry()|>
+  mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
+                                 CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
+  #filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024),
+  #       (FORTYPCD>=140&FORTYPCD<=150)|(FORTYPCD>=160&FORTYPCD<=170)|(FORTYPCD>=400&FORTYPCD<=500)|(FORTYPCD>=970&FORTYPCD<=980))|>  #limit to common forest types
+    mutate(FORTYP = if_else(FORTYPCD>=140&FORTYPCD<=150,"longleaf/slash pine",
+                          if_else(FORTYPCD>=160&FORTYPCD<=170,"loblolly/shortleaf pine",
+                                  if_else(FORTYPCD>=400&FORTYPCD<=500,"oak/pine",
+                                          if_else(FORTYPCD>=970&FORTYPCD<=980,"woodland hardwoods","all others")))))|>
+  left_join(counties|>filter(REGION_COD %in% c(12,13))|>mutate(COUNTYCD=as.numeric(substr(CODE_LOCAL,3,6)),
+                                                               REGION_COD=as.numeric(REGION_COD))|>
+              select(NAME,REGION_COD,COUNTYCD)|>rename(County=NAME),by=join_by(STATECD==REGION_COD,COUNTYCD))
+  
+HeleneAcres <- rbind(HeleneAcres,
+                     HeleneAcres|>mutate(FORTYP="All",County="All"),
+                     HeleneAcres|>mutate(FORTYP="All"),
+                     HeleneAcres|>mutate(County="All"))|>
+  group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
+  summarise(nplots=length(unique(CN)),
+            ForestedAcres=sum(ForestedAcres*EXPNS_new))
+```
+
+    ## `summarise()` has grouped output by 'STATECD', 'EVAL_GRP', 'FORTYP', 'County'.
+    ## You can override using the `.groups` argument.
+
+``` r
+HeleneAcres|>filter(EVAL_GRP==122024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
+```
+
+    ## [1] 16539734
+
+``` r
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
+```
+
+    ## $ESTIMATE
+    ## [1] 16679484
+
+``` r
+HeleneAcres|>filter(EVAL_GRP==132024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
+```
+
+    ## [1] 31854520
+
+``` r
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
+```
+
+    ## $ESTIMATE
+    ## [1] 24088910
