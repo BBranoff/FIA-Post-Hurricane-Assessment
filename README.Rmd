@@ -121,7 +121,7 @@ plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
 With the hurricane intensity areas defined, we can assign them to each plot. We also need to define the area of each wind zone. 
 These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. 
 
-```{r extract,eval=TRUE,fig.width=9,fig.height=5,fig.cap = "Fig 2. Hurricane Helene's wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." }
+```{r extract,eval=TRUE,fig.width=9,fig.height=9,fig.cap = "Fig 2. Hurricane Helene's wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." }
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
@@ -143,7 +143,7 @@ Areas$Acres <- Areas$Freq/4046.86
 Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
 plot(Helene_Cat_plots)
 ###  overlay the plots
-plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.5)
+plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.01)
 plot(st_geometry(usa),add=TRUE,border="darkgrey")
 plot(st_geometry(counties),add=TRUE,border="darkgrey")
 ```
@@ -210,12 +210,10 @@ ForestedAcres <- plots_geo |>
   group_by(EVAL_GRP)|>
   summarise(ForestedAcres=sum(ForestedAcres*EXPNS))|>
   st_drop_geometry()
-###  our custom estimate
-ForestedAcres
-###  EVALIDATOR for Florida
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
-###  EVALIDATOR for Georgia
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
+###  our custom estimate versus EVALIDATOR
+ForestedAcres |>
+  mutate(EVALIDATORacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
+                             fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 
 ```
 
@@ -225,7 +223,7 @@ based on the calculated area of the strata and the number of plots in each strat
 
 We also add in the common request that this be done by county and by forest type, although we limit the forest type to only the most common
 requested types. 
-```{r forestedarea,eval=TRUE}
+```{r forestedarea,eval=TRUE,message=FALSE}
 ##  first testing the concept on the full evaluation with the original expansion factors
 HeleneAcres <- plots_geo |>st_drop_geometry()|>
   mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
@@ -248,9 +246,12 @@ HeleneAcres <- rbind(HeleneAcres,
   summarise(nplots=length(unique(CN)),
             ForestedAcres=sum(ForestedAcres*EXPNS_new))
   
-HeleneAcres|>filter(EVAL_GRP==122024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
-HeleneAcres|>filter(EVAL_GRP==132024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
+HeleneAcres|>
+  filter(EVAL_GRP%in% c(122024,132024),FORTYP=="All",County=="All")|>
+  group_by(EVAL_GRP) |>
+  summarise(ForestedAcres=sum(ForestedAcres,na.rm=TRUE))|>
+  mutate(EVALIDATORSacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
+                                                                                                                                                                                        fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 ```
 
+These estimates are close to the totals from EVALIDATOR but a little off. This is probably because we are using the total area of the strata to calculate the expansion factor instead of using only the forested area inside the strata (?).

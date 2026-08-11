@@ -989,7 +989,7 @@ order to calculate the expansion factors.
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
-Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.01)),crs(Helene_Cat))))
+Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.001)),crs(Helene_Cat))))
 ##  now calculate area of each wind zone
 ##  important to do this while the raster is in projected, not geographic, coordinates
 ##  also important to do by state, as this is how the evaluation is done
@@ -1007,7 +1007,7 @@ Areas$Acres <- Areas$Freq/4046.86
 Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
 plot(Helene_Cat_plots)
 ###  overlay the plots
-plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.5)
+plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.01)
 plot(st_geometry(usa),add=TRUE,border="darkgrey")
 plot(st_geometry(counties),add=TRUE,border="darkgrey")
 ```
@@ -1046,31 +1046,17 @@ ForestedAcres <- plots_geo |>
   group_by(EVAL_GRP)|>
   summarise(ForestedAcres=sum(ForestedAcres*EXPNS))|>
   st_drop_geometry()
-###  our custom estimate
-ForestedAcres
+###  our custom estimate versus EVALIDATOR
+ForestedAcres |>
+  mutate(EVALIDATORacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
+                             fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 ```
 
-    ## # A tibble: 2 × 2
-    ##   EVAL_GRP ForestedAcres
-    ## *    <int>         <dbl>
-    ## 1   122024     16679484.
-    ## 2   132024     24088910.
-
-``` r
-###  EVALIDATOR for Florida
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
-```
-
-    ## $ESTIMATE
-    ## [1] 16679484
-
-``` r
-###  EVALIDATOR for Georgia
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
-```
-
-    ## $ESTIMATE
-    ## [1] 24088910
+    ## # A tibble: 2 × 3
+    ##   EVAL_GRP ForestedAcres EVALIDATORacres
+    ##      <int>         <dbl>           <dbl>
+    ## 1   122024     16679484.       16679484.
+    ## 2   132024     24088910.       24088910.
 
 From the above, the DIY ad-hoc estimate matches the total forested acres
 for these two evaluations from EVALIDATOR. To apply it to our custom
@@ -1111,27 +1097,21 @@ HeleneAcres <- rbind(HeleneAcres,
     ## You can override using the `.groups` argument.
 
 ``` r
-HeleneAcres|>filter(EVAL_GRP==122024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
+HeleneAcres|>
+  filter(EVAL_GRP%in% c(122024,132024),FORTYP=="All",County=="All")|>
+  group_by(EVAL_GRP) |>
+  summarise(ForestedAcres=sum(ForestedAcres,na.rm=TRUE))|>
+  mutate(EVALIDATORSacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
+                                                                                                                                                                                        fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 ```
 
-    ## [1] 16539734
+    ## # A tibble: 2 × 3
+    ##   EVAL_GRP ForestedAcres EVALIDATORSacres
+    ##      <int>         <dbl>            <dbl>
+    ## 1   122024     15534634.        16679484.
+    ## 2   132024     27123515.        24088910.
 
-``` r
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
-```
-
-    ## $ESTIMATE
-    ## [1] 16679484
-
-``` r
-HeleneAcres|>filter(EVAL_GRP==132024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
-```
-
-    ## [1] 31854520
-
-``` r
-fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
-```
-
-    ## $ESTIMATE
-    ## [1] 24088910
+These estimates are close to the totals from EVALIDATOR but a little
+off. This is probably because we are using the total area of the strata
+to calculate the expansion factor instead of using only the forested
+area inside the strata (?).
