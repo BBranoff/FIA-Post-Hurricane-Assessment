@@ -2,6 +2,8 @@
 title: "FIA-Post-Hurricane-Assessment"
 author: "Ben Branoff & Andres Castro-Baez"
 date: "2026-08-10"
+output: github_document
+always_allow_html: true
 ---
 
 # FIA-Post-Hurricane-Assessment
