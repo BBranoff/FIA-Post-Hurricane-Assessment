@@ -1,6 +1,6 @@
 FIA-Post-Hurricane-Assessment
 ================
-Ben Branoff & Andres Castro-Baez
+Ben Branoff & Andrés Baeza-Castro
 2026-08-10
 
 # FIA-Post-Hurricane-Assessment
@@ -26,7 +26,7 @@ vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.measyear,p.meas
               "pps.stratum_cn ")
 tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps "
 filts = paste0("where p.eval_grp in (132024,122024,132025,122025) 
-and ps.evalid in(122500,122400,132500,132400)
+and ps.evalid in(122501,122401,132501,132401)
 and c.plt_cn = p.cn
 and pps.stratum_cn = ps.cn
 and pps.plt_cn = p.cn
@@ -191,12 +191,7 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-2026
-</td>
-
-<td style="text-align:right;">
-
-2
+2025
 </td>
 
 <td style="text-align:right;">
@@ -206,12 +201,17 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-31.95952
+27
 </td>
 
 <td style="text-align:right;">
 
--81.13801
+32.00675
+</td>
+
+<td style="text-align:right;">
+
+-82.74630
 </td>
 
 <td style="text-align:right;">
@@ -231,12 +231,12 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-406
+602
 </td>
 
 <td style="text-align:right;">
 
-1.00000
+0.750000
 </td>
 
 <td style="text-align:left;">
@@ -246,12 +246,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132500
+132501
 </td>
 
 <td style="text-align:right;">
 
-1.995550e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -261,12 +261,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1
+1.000346
 </td>
 
 <td style="text-align:right;">
 
-5703.681
+5798.479
 </td>
 
 <td style="text-align:right;">
@@ -305,27 +305,27 @@ SUBP
 
 <td style="text-align:right;">
 
-2026
+2025
 </td>
 
 <td style="text-align:right;">
 
-5
+7
 </td>
 
 <td style="text-align:right;">
 
-26
+25
 </td>
 
 <td style="text-align:right;">
 
-32.78063
+31.35273
 </td>
 
 <td style="text-align:right;">
 
--83.62257
+-83.00512
 </td>
 
 <td style="text-align:right;">
@@ -345,12 +345,12 @@ SUBP
 
 <td style="text-align:right;">
 
-602
+608
 </td>
 
 <td style="text-align:right;">
 
-1.00000
+0.750000
 </td>
 
 <td style="text-align:left;">
@@ -360,12 +360,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132500
+132501
 </td>
 
 <td style="text-align:right;">
 
-1.995550e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -375,12 +375,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1
+1.000346
 </td>
 
 <td style="text-align:right;">
 
-5785.808
+5798.479
 </td>
 
 <td style="text-align:right;">
@@ -399,7 +399,7 @@ SUBP
 
 <td style="text-align:right;">
 
-7.185615e+14
+1.682647e+15
 </td>
 
 <td style="text-align:right;">
@@ -409,265 +409,37 @@ SUBP
 
 <td style="text-align:right;">
 
-2020
+2025
 </td>
 
 <td style="text-align:right;">
 
-132024
+132025
 </td>
 
 <td style="text-align:right;">
 
-2021
+2025
 </td>
 
 <td style="text-align:right;">
 
-3
+7
 </td>
 
 <td style="text-align:right;">
 
-10
+25
 </td>
 
 <td style="text-align:right;">
 
-32.78063
+31.35273
 </td>
 
 <td style="text-align:right;">
 
--83.62257
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-46
-</td>
-
-<td style="text-align:right;">
-
-602
-</td>
-
-<td style="text-align:right;">
-
-1.00000
-</td>
-
-<td style="text-align:left;">
-
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132400
-</td>
-
-<td style="text-align:right;">
-
-1.898605e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-5785.808
-</td>
-
-<td style="text-align:right;">
-
-1.898560e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-4
-</td>
-
-<td style="text-align:right;">
-
-7.185621e+14
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-2020
-</td>
-
-<td style="text-align:right;">
-
-132024
-</td>
-
-<td style="text-align:right;">
-
-2020
-</td>
-
-<td style="text-align:right;">
-
-8
-</td>
-
-<td style="text-align:right;">
-
-18
-</td>
-
-<td style="text-align:right;">
-
-32.27522
-</td>
-
-<td style="text-align:right;">
-
--81.60160
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-46
-</td>
-
-<td style="text-align:right;">
-
-142
-</td>
-
-<td style="text-align:right;">
-
-1.00000
-</td>
-
-<td style="text-align:left;">
-
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132400
-</td>
-
-<td style="text-align:right;">
-
-1.898605e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-5928.287
-</td>
-
-<td style="text-align:right;">
-
-1.898560e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-5
-</td>
-
-<td style="text-align:right;">
-
-7.185621e+14
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-2020
-</td>
-
-<td style="text-align:right;">
-
-132024
-</td>
-
-<td style="text-align:right;">
-
-2021
-</td>
-
-<td style="text-align:right;">
-
-3
-</td>
-
-<td style="text-align:right;">
-
-15
-</td>
-
-<td style="text-align:right;">
-
-32.21378
-</td>
-
-<td style="text-align:right;">
-
--81.61862
+-83.00512
 </td>
 
 <td style="text-align:right;">
@@ -687,12 +459,12 @@ SUBP
 
 <td style="text-align:right;">
 
-161
+608
 </td>
 
 <td style="text-align:right;">
 
-0.48061
+0.250000
 </td>
 
 <td style="text-align:left;">
@@ -702,12 +474,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132400
+132501
 </td>
 
 <td style="text-align:right;">
 
-1.898605e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -717,17 +489,17 @@ SUBP
 
 <td style="text-align:right;">
 
-1
+1.000346
 </td>
 
 <td style="text-align:right;">
 
-5703.681
+5798.479
 </td>
 
 <td style="text-align:right;">
 
-1.898560e+15
+1.995523e+15
 </td>
 
 </tr>
@@ -736,12 +508,12 @@ SUBP
 
 <td style="text-align:right;">
 
-6
+4
 </td>
 
 <td style="text-align:right;">
 
-7.185616e+14
+1.682647e+15
 </td>
 
 <td style="text-align:right;">
@@ -751,37 +523,37 @@ SUBP
 
 <td style="text-align:right;">
 
-2020
+2025
 </td>
 
 <td style="text-align:right;">
 
-132024
+132025
 </td>
 
 <td style="text-align:right;">
 
-2020
+2026
 </td>
 
 <td style="text-align:right;">
 
-7
+1
 </td>
 
 <td style="text-align:right;">
 
-8
+13
 </td>
 
 <td style="text-align:right;">
 
-31.04716
+31.58309
 </td>
 
 <td style="text-align:right;">
 
--83.82371
+-82.77409
 </td>
 
 <td style="text-align:right;">
@@ -806,7 +578,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.00000
+0.500000
 </td>
 
 <td style="text-align:left;">
@@ -816,12 +588,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132400
+132501
 </td>
 
 <td style="text-align:right;">
 
-1.898605e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -831,17 +603,245 @@ SUBP
 
 <td style="text-align:right;">
 
+1.001100
+</td>
+
+<td style="text-align:right;">
+
+6032.520
+</td>
+
+<td style="text-align:right;">
+
+1.995523e+15
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:right;">
+
+5
+</td>
+
+<td style="text-align:right;">
+
+1.682647e+15
+</td>
+
+<td style="text-align:right;">
+
 1
 </td>
 
 <td style="text-align:right;">
 
-6171.515
+2025
 </td>
 
 <td style="text-align:right;">
 
-1.898560e+15
+132025
+</td>
+
+<td style="text-align:right;">
+
+2026
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+28
+</td>
+
+<td style="text-align:right;">
+
+33.77128
+</td>
+
+<td style="text-align:right;">
+
+-83.06053
+</td>
+
+<td style="text-align:right;">
+
+2
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+46
+</td>
+
+<td style="text-align:right;">
+
+999
+</td>
+
+<td style="text-align:right;">
+
+0.250000
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132501
+</td>
+
+<td style="text-align:right;">
+
+1.99555e+15
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.001336
+</td>
+
+<td style="text-align:right;">
+
+5872.472
+</td>
+
+<td style="text-align:right;">
+
+1.995523e+15
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:right;">
+
+6
+</td>
+
+<td style="text-align:right;">
+
+1.682647e+15
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+2025
+</td>
+
+<td style="text-align:right;">
+
+132025
+</td>
+
+<td style="text-align:right;">
+
+2025
+</td>
+
+<td style="text-align:right;">
+
+11
+</td>
+
+<td style="text-align:right;">
+
+6
+</td>
+
+<td style="text-align:right;">
+
+31.89829
+</td>
+
+<td style="text-align:right;">
+
+-84.23754
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+46
+</td>
+
+<td style="text-align:right;">
+
+608
+</td>
+
+<td style="text-align:right;">
+
+0.859769
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132501
+</td>
+
+<td style="text-align:right;">
+
+1.99555e+15
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.000934
+</td>
+
+<td style="text-align:right;">
+
+5857.771
+</td>
+
+<td style="text-align:right;">
+
+1.995523e+15
 </td>
 
 </tr>
@@ -957,6 +957,48 @@ and, using a custom expansion factor, estimate the total forested
 acreage in each wind zone.
 
 ``` r
+fiadb_api_GET = function(url){
+
+  # make request
+  resp <- httr::GET(url=url)
+  # parse response from JSON to R list
+  respObj <- httr::content(resp, "parsed", encoding = "ISO-8859-1")
+
+  # create empty output list
+  outputList = list()
+
+  # add estimates data frame to output list
+  if (! is.null(respObj$estimates)) {
+      outputList$estimates <- format_estimate(respObj$estimates)
+  } else  {
+      print("Problem with URL or API. No estimate returned.")
+      return(list())
+  }
+
+
+  #Use lapply to break apart subtotal list, then call sapply to format with names
+  if (! is.null(respObj$subtotals))
+        outputList$subtotals <- sapply(lapply(respObj$subtotals, "["),
+                                       format_estimate, simplify = F, USE.NAMES = T)
+
+  # totals data frame
+  if (! is.null(respObj$totals))
+    outputList$totals <- format_estimate(respObj$totals)
+
+
+  # add estimate metadata, doesn't need to be reformatted
+  if (! is.null(respObj$metadata)) outputList$metadata <- respObj$metadata
+
+  return(outputList)
+}
+format_estimate = function(respList) {
+
+  return(as.data.frame(do.call(rbind, respList)))
+
+}
+```
+
+``` r
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
 plots_geo<- plots_geo |>
@@ -966,21 +1008,37 @@ plots_geo<- plots_geo |>
 
 ##  first testing the concept on the full evaluation with the original expansion factors
 ForestedAcres <- plots_geo |>
-  mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
-  filter(EVALID %in% c(122400,132400))|>
+  mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
+                                 CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
+  filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024))|>
   group_by(EVAL_GRP)|>
   summarise(ForestedAcres=sum(ForestedAcres*EXPNS))|>
   st_drop_geometry()
+###  our custom estimate
 ForestedAcres
 ```
 
-    ## # A tibble: 4 × 2
+    ## # A tibble: 2 × 2
     ##   EVAL_GRP ForestedAcres
     ## *    <int>         <dbl>
-    ## 1   122024     15660743.
-    ## 2   122025     13464286.
-    ## 3   132024     23566856.
-    ## 4   132025     18796913.
+    ## 1   122024     16679484.
+    ## 2   132024     24088910.
+
+``` r
+###  EVALIDATOR for Florida
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
+```
+
+    ## $ESTIMATE
+    ## [1] 16679484
+
+``` r
+###  EVALIDATOR for Georgia
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
+```
+
+    ## $ESTIMATE
+    ## [1] 24088910
 
 Evalidator shows 16,679,484 acres for 122024 and 24,088,910 acres for
 132024

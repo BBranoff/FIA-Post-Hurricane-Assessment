@@ -1,6 +1,6 @@
 ---
 title: "FIA-Post-Hurricane-Assessment"
-author: "Ben Branoff & Andres Castro-Baez"
+author: "Ben Branoff & Andrés Baeza-Castro"
 date: "2026-08-10"
 output: github_document
 always_allow_html: true
@@ -17,13 +17,13 @@ For now, we are only asking for the plots, their conditions, and their associate
 ```{r load-plots,eval=FALSE}
 library(DBI)
 myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
-vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
+vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
                     "c.condid,c.cond_status_cd,c.owncd,c.fortypcd,c.condprop_unadj,c.prop_basis,",
               "ps.evalid,ps.estn_unit_cn,ps.adj_factor_macr,ps.adj_factor_subp,ps.expns,",
               "pps.stratum_cn ")
 tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps "
 filts = paste0("where p.eval_grp in (132024,122024,132025,122025) 
-and ps.evalid in(122500,122400,132500,132400)
+and ps.evalid in(122501,122401,132501,132401)
 and c.plt_cn = p.cn
 and pps.stratum_cn = ps.cn
 and pps.plt_cn = p.cn
@@ -97,7 +97,7 @@ Helene_extents <- make_extents(Helene,t_res=30)
 Helene_winds <- get_wind(Helene_extents,method="Boose",agg=TRUE,s_res=5000)
 ###  classify the maximum wind speed into the Saffir-Simpson scale
 Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
-                       matrix(c(0,33,NA,
+                       matrix(c(0,33,0,
                                 33,43,1,
                                 43,50,2,
                                 50,60,3,
@@ -108,7 +108,7 @@ plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
 ```
 ```{r winds-hidden,eval=TRUE,echo=FALSE,fig.width=9,fig.height=5,fig.cap = "Fig 1. Hurricane Helene's wind field, categorized into intensity zones." }
 Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
-                       matrix(c(0,33,NA,
+                       matrix(c(0,33,0,
                                 33,43,1,
                                 43,50,2,
                                 50,60,3,
@@ -149,8 +149,48 @@ necessary tables and calculate the desired estimates.
 
 Beginning with assembling the necessary tables. Forested area is likely the most straight forward. We will get the 
 forested acreage of each plot and, using a custom expansion factor, estimate the total forested acreage in each wind zone.
+```{r evalidator_f,eval=TRUE}
+fiadb_api_GET = function(url){
 
-```{r install,eval=TRUE}
+  # make request
+  resp <- httr::GET(url=url)
+  # parse response from JSON to R list
+  respObj <- httr::content(resp, "parsed", encoding = "ISO-8859-1")
+
+  # create empty output list
+  outputList = list()
+
+  # add estimates data frame to output list
+  if (! is.null(respObj$estimates)) {
+      outputList$estimates <- format_estimate(respObj$estimates)
+  } else  {
+      print("Problem with URL or API. No estimate returned.")
+      return(list())
+  }
+
+
+  #Use lapply to break apart subtotal list, then call sapply to format with names
+  if (! is.null(respObj$subtotals))
+        outputList$subtotals <- sapply(lapply(respObj$subtotals, "["),
+                                       format_estimate, simplify = F, USE.NAMES = T)
+
+  # totals data frame
+  if (! is.null(respObj$totals))
+    outputList$totals <- format_estimate(respObj$totals)
+
+
+  # add estimate metadata, doesn't need to be reformatted
+  if (! is.null(respObj$metadata)) outputList$metadata <- respObj$metadata
+
+  return(outputList)
+}
+format_estimate = function(respList) {
+
+  return(as.data.frame(do.call(rbind, respList)))
+
+}
+```
+```{r evalidate,eval=TRUE}
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
 plots_geo<- plots_geo |>
@@ -160,12 +200,53 @@ plots_geo<- plots_geo |>
 
 ##  first testing the concept on the full evaluation with the original expansion factors
 ForestedAcres <- plots_geo |>
-  mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
-  filter(EVALID %in% c(122400,132400))|>
+  mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
+                                 CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
+  filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024))|>
   group_by(EVAL_GRP)|>
   summarise(ForestedAcres=sum(ForestedAcres*EXPNS))|>
   st_drop_geometry()
+###  our custom estimate
 ForestedAcres
+###  EVALIDATOR for Florida
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
+###  EVALIDATOR for Georgia
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE
+
 ```
 
-Evalidator shows 16,679,484 acres for 122024 and 24,088,910 acres for 132024
+From the above, the DIY ad-hoc estimate matches the total forested acres for these two evaluations from EVALIDATOR. To apply it to our 
+custom stata (wind zones), we only need to change the EXPNS from the full evaluation tables to our custom EXPNS_new that we calculated
+based on the calculated area of the strata and the number of plots in each strata. 
+
+We also add in the common request that this be done by county and by forest type, although we limit the forest type to only the most common
+requested types. 
+```{r forestedarea,eval=TRUE}
+##  first testing the concept on the full evaluation with the original expansion factors
+HeleneAcres <- plots_geo |>st_drop_geometry()|>
+  mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
+                                 CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
+  #filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024),
+  #       (FORTYPCD>=140&FORTYPCD<=150)|(FORTYPCD>=160&FORTYPCD<=170)|(FORTYPCD>=400&FORTYPCD<=500)|(FORTYPCD>=970&FORTYPCD<=980))|>  #limit to common forest types
+    mutate(FORTYP = if_else(FORTYPCD>=140&FORTYPCD<=150,"longleaf/slash pine",
+                          if_else(FORTYPCD>=160&FORTYPCD<=170,"loblolly/shortleaf pine",
+                                  if_else(FORTYPCD>=400&FORTYPCD<=500,"oak/pine",
+                                          if_else(FORTYPCD>=970&FORTYPCD<=980,"woodland hardwoods","all others")))))|>
+  left_join(counties|>filter(REGION_COD %in% c(12,13))|>mutate(COUNTYCD=as.numeric(substr(CODE_LOCAL,3,6)),
+                                                               REGION_COD=as.numeric(REGION_COD))|>
+              select(NAME,REGION_COD,COUNTYCD)|>rename(County=NAME),by=join_by(STATECD==REGION_COD,COUNTYCD))
+  
+HeleneAcres <- rbind(HeleneAcres,
+                     HeleneAcres|>mutate(FORTYP="All",County="All"),
+                     HeleneAcres|>mutate(FORTYP="All"),
+                     HeleneAcres|>mutate(County="All"))|>
+  group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
+  summarise(nplots=n(),
+            ForestedAcres=sum(ForestedAcres*EXPNS_new))
+  
+HeleneAcres|>filter(EVAL_GRP==122024,FORTYP=="All",County=="All")|>pull(ForestedAcres)|>sum(na.rm=TRUE)
+fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE
+```
+
+The new total acreage does not match the total acreage from EVALIDATOR. There are 55 plots that are not in any wind zone, which is part of the reason but
+the total is about half the EVALIDATOR total, which suggests there is something else missing. 
