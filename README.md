@@ -20,7 +20,7 @@ Their trees and reference tables will be joined later.
 ``` r
 library(DBI)
 myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
-vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
+vars = paste0("select p.cn,p.prev_plt_cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
                     "c.condid,c.cond_status_cd,c.owncd,c.fortypcd,c.condprop_unadj,c.prop_basis,",
               "ps.evalid,ps.estn_unit_cn,ps.adj_factor_macr,ps.adj_factor_subp,ps.expns,",
               "pps.stratum_cn ")
@@ -35,6 +35,8 @@ and c.cond_status_cd = 1 and c.condprop_unadj IS NOT NULL")
 #               default null on conversion error,
 #               'YYYY-MM-DD') >= date '2024-09-26'") 
 plots = dbGetQuery(myconn,paste0(vars,tabs,filts))
+##  also, convert the plots to a spatial object
+plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
 plots
 ```
 
@@ -54,6 +56,11 @@ X
 <th style="text-align:right;">
 
 CN
+</th>
+
+<th style="text-align:right;">
+
+PREV_PLT_CN
 </th>
 
 <th style="text-align:right;">
@@ -186,6 +193,11 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
+7.185623e+14
+</td>
+
+<td style="text-align:right;">
+
 1
 </td>
 
@@ -206,7 +218,7 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-71
+155
 </td>
 
 <td style="text-align:right;">
@@ -216,22 +228,22 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-12
+11
 </td>
 
 <td style="text-align:right;">
 
-16
+7
 </td>
 
 <td style="text-align:right;">
 
-31.21841
+31.59123
 </td>
 
 <td style="text-align:right;">
 
--83.92017
+-83.06859
 </td>
 
 <td style="text-align:right;">
@@ -251,12 +263,12 @@ STRATUM_CN
 
 <td style="text-align:right;">
 
-142
+608
 </td>
 
 <td style="text-align:right;">
 
-0.811593
+0.832980
 </td>
 
 <td style="text-align:left;">
@@ -271,7 +283,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.995550e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -310,6 +322,11 @@ SUBP
 
 <td style="text-align:right;">
 
+7.185623e+14
+</td>
+
+<td style="text-align:right;">
+
 1
 </td>
 
@@ -330,7 +347,7 @@ SUBP
 
 <td style="text-align:right;">
 
-241
+69
 </td>
 
 <td style="text-align:right;">
@@ -340,27 +357,22 @@ SUBP
 
 <td style="text-align:right;">
 
-3
+1
 </td>
 
 <td style="text-align:right;">
 
-3
+15
 </td>
 
 <td style="text-align:right;">
 
-34.93850
+31.51980
 </td>
 
 <td style="text-align:right;">
 
--83.22374
-</td>
-
-<td style="text-align:right;">
-
-2
+-82.65338
 </td>
 
 <td style="text-align:right;">
@@ -370,17 +382,22 @@ SUBP
 
 <td style="text-align:right;">
 
-11
+1
 </td>
 
 <td style="text-align:right;">
 
-167
+46
 </td>
 
 <td style="text-align:right;">
 
-0.250000
+161
+</td>
+
+<td style="text-align:right;">
+
+0.816345
 </td>
 
 <td style="text-align:left;">
@@ -395,7 +412,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.995550e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -405,12 +422,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1.007874
+1.000346
 </td>
 
 <td style="text-align:right;">
 
-2107.495
+5798.479
 </td>
 
 <td style="text-align:right;">
@@ -434,6 +451,11 @@ SUBP
 
 <td style="text-align:right;">
 
+7.185616e+14
+</td>
+
+<td style="text-align:right;">
+
 1
 </td>
 
@@ -454,37 +476,37 @@ SUBP
 
 <td style="text-align:right;">
 
-257
+255
 </td>
 
 <td style="text-align:right;">
 
-2025
+2026
 </td>
 
 <td style="text-align:right;">
 
-11
+3
 </td>
 
 <td style="text-align:right;">
 
-12
+26
 </td>
 
 <td style="text-align:right;">
 
-34.60586
+33.29923
 </td>
 
 <td style="text-align:right;">
 
--83.34580
+-84.16433
 </td>
 
 <td style="text-align:right;">
 
-2
+1
 </td>
 
 <td style="text-align:right;">
@@ -499,12 +521,12 @@ SUBP
 
 <td style="text-align:right;">
 
-406
+161
 </td>
 
 <td style="text-align:right;">
 
-0.250000
+0.750000
 </td>
 
 <td style="text-align:left;">
@@ -519,7 +541,7 @@ SUBP
 
 <td style="text-align:right;">
 
-1.995550e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -529,12 +551,12 @@ SUBP
 
 <td style="text-align:right;">
 
-1.005641
+1.002237
 </td>
 
 <td style="text-align:right;">
 
-5682.163
+6123.728
 </td>
 
 <td style="text-align:right;">
@@ -553,7 +575,12 @@ SUBP
 
 <td style="text-align:right;">
 
-7.185616e+14
+1.682647e+15
+</td>
+
+<td style="text-align:right;">
+
+7.185623e+14
 </td>
 
 <td style="text-align:right;">
@@ -563,12 +590,12 @@ SUBP
 
 <td style="text-align:right;">
 
-2020
+2025
 </td>
 
 <td style="text-align:right;">
 
-132024
+132025
 </td>
 
 <td style="text-align:right;">
@@ -578,37 +605,37 @@ SUBP
 
 <td style="text-align:right;">
 
-81
-</td>
-
-<td style="text-align:right;">
-
-2021
-</td>
-
-<td style="text-align:right;">
-
 3
 </td>
 
 <td style="text-align:right;">
 
-15
+2026
 </td>
 
 <td style="text-align:right;">
 
-31.96445
+1
 </td>
 
 <td style="text-align:right;">
 
--83.86866
+12
 </td>
 
 <td style="text-align:right;">
 
-2
+31.27324
+</td>
+
+<td style="text-align:right;">
+
+-82.74704
+</td>
+
+<td style="text-align:right;">
+
+1
 </td>
 
 <td style="text-align:right;">
@@ -623,12 +650,12 @@ SUBP
 
 <td style="text-align:right;">
 
-161
+142
 </td>
 
 <td style="text-align:right;">
 
-0.751377
+1.000000
 </td>
 
 <td style="text-align:left;">
@@ -638,12 +665,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132401
+132501
 </td>
 
 <td style="text-align:right;">
 
-1.898605e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -653,17 +680,17 @@ SUBP
 
 <td style="text-align:right;">
 
-1.001051
+1.000346
 </td>
 
 <td style="text-align:right;">
 
-6171.515
+5798.479
 </td>
 
 <td style="text-align:right;">
 
-1.898560e+15
+1.995523e+15
 </td>
 
 </tr>
@@ -677,7 +704,12 @@ SUBP
 
 <td style="text-align:right;">
 
-7.185621e+14
+1.682647e+15
+</td>
+
+<td style="text-align:right;">
+
+7.185618e+14
 </td>
 
 <td style="text-align:right;">
@@ -687,12 +719,12 @@ SUBP
 
 <td style="text-align:right;">
 
-2020
+2025
 </td>
 
 <td style="text-align:right;">
 
-132024
+132025
 </td>
 
 <td style="text-align:right;">
@@ -702,42 +734,17 @@ SUBP
 
 <td style="text-align:right;">
 
-29
+35
 </td>
 
 <td style="text-align:right;">
 
-2020
+2026
 </td>
 
 <td style="text-align:right;">
 
-12
-</td>
-
-<td style="text-align:right;">
-
-21
-</td>
-
-<td style="text-align:right;">
-
-32.03989
-</td>
-
-<td style="text-align:right;">
-
--81.40135
-</td>
-
-<td style="text-align:right;">
-
-2
-</td>
-
-<td style="text-align:right;">
-
-1
+3
 </td>
 
 <td style="text-align:right;">
@@ -747,111 +754,12 @@ SUBP
 
 <td style="text-align:right;">
 
-142
+33.33348
 </td>
 
 <td style="text-align:right;">
 
-0.180791
-</td>
-
-<td style="text-align:left;">
-
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132401
-</td>
-
-<td style="text-align:right;">
-
-1.898605e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1.000000
-</td>
-
-<td style="text-align:right;">
-
-6403.255
-</td>
-
-<td style="text-align:right;">
-
-1.898560e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-6
-</td>
-
-<td style="text-align:right;">
-
-7.185621e+14
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-2020
-</td>
-
-<td style="text-align:right;">
-
-132024
-</td>
-
-<td style="text-align:right;">
-
-13
-</td>
-
-<td style="text-align:right;">
-
-179
-</td>
-
-<td style="text-align:right;">
-
-2020
-</td>
-
-<td style="text-align:right;">
-
-7
-</td>
-
-<td style="text-align:right;">
-
-8
-</td>
-
-<td style="text-align:right;">
-
-31.89181
-</td>
-
-<td style="text-align:right;">
-
--81.47138
+-83.93474
 </td>
 
 <td style="text-align:right;">
@@ -876,7 +784,7 @@ SUBP
 
 <td style="text-align:right;">
 
-0.990922
+1.000000
 </td>
 
 <td style="text-align:left;">
@@ -886,12 +794,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132401
+132501
 </td>
 
 <td style="text-align:right;">
 
-1.898605e+15
+1.99555e+15
 </td>
 
 <td style="text-align:right;">
@@ -901,17 +809,146 @@ SUBP
 
 <td style="text-align:right;">
 
-1.001100
+1.000934
 </td>
 
 <td style="text-align:right;">
 
-6032.520
+5857.771
 </td>
 
 <td style="text-align:right;">
 
-1.898560e+15
+1.995523e+15
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:right;">
+
+6
+</td>
+
+<td style="text-align:right;">
+
+1.682647e+15
+</td>
+
+<td style="text-align:right;">
+
+7.185618e+14
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+2025
+</td>
+
+<td style="text-align:right;">
+
+132025
+</td>
+
+<td style="text-align:right;">
+
+13
+</td>
+
+<td style="text-align:right;">
+
+105
+</td>
+
+<td style="text-align:right;">
+
+2026
+</td>
+
+<td style="text-align:right;">
+
+3
+</td>
+
+<td style="text-align:right;">
+
+25
+</td>
+
+<td style="text-align:right;">
+
+34.05846
+</td>
+
+<td style="text-align:right;">
+
+-82.81808
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+46
+</td>
+
+<td style="text-align:right;">
+
+508
+</td>
+
+<td style="text-align:right;">
+
+1.000000
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132501
+</td>
+
+<td style="text-align:right;">
+
+1.99555e+15
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.001336
+</td>
+
+<td style="text-align:right;">
+
+5872.472
+</td>
+
+<td style="text-align:right;">
+
+1.995523e+15
 </td>
 
 </tr>
@@ -927,10 +964,30 @@ been collected since the storm in Georgia and Florida.
 
 Now, use the Cyclones package to recreate the winds for Helene and
 create wind intensity zones. For now, Cyclones is only available on
-Github, so an extra package (“remotes”) is required to install it.
+Github, so an extra package (“remotes”) is required to install it. For
+this workflow, the hurricane wind information is provided as part of the
+download and there is no need to recalculate, but the process is
+demonstrated anyways.
 
-First, get the storm track information. This is the foundation for being
-able to retreive the winds (and rain and storm surge).
+To download the hurricane data, as well as some other spatial boundary
+files of the USA and counties:
+
+``` r
+HeleneStuff <- readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))
+Helene <- HeleneStuff$storm
+Helene_extents <- HeleneStuff$extent
+Helene_winds <- lapply(HeleneStuff$winds,unwrap)
+usa <- rnaturalearth::ne_countries(country="united states of america",scale=10)
+counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
+                        layer = "ne_10m_admin_2_counties")
+```
+
+Below demonstrates how the above hurricane data was obtained. First the
+Cyclones package is downloaded and installed and it is used to ingest
+the necessary data and process into the wind fields we need.  
+First, download the package and get the storm track information. This is
+the foundation for being able to retrieve the winds (and rain and storm
+surge).
 
 ``` r
 ##  install
@@ -940,20 +997,13 @@ library(Cyclones)
 library(terra)
 library(sf)
 library(dplyr)
-##  we will use the rnaturalearth package to get state boundaries
-usa <- rnaturalearth::ne_countries(country="united states of america",scale=10)
-##  can also download the county boundaries
-counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
-                        layer = "ne_10m_admin_2_counties")
-##  also, convert the plots to a spatial object
-plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
 ##  get the storm information
 Helene <- get_storms(name="HELENE",season=2024)
 Helene
 ```
 
 Now, calculate the wind field. Here we just use a theoretical (Boose)
-equation based on the maximum wind speed. We calulate the wind onto a
+equation based on the maximum wind speed. We calculate the wind onto a
 grid with a spatial resolution of 5km.
 
 ``` r
@@ -979,6 +1029,9 @@ alt="Fig 1. Hurricane Helene’s wind field, categorized into intensity zones." 
 <figcaption aria-hidden="true">Fig 1. Hurricane Helene’s wind field,
 categorized into intensity zones.</figcaption>
 </figure>
+
+The Helene hurricane data is now processed and ready for overlays with
+the plots.
 
 With the hurricane intensity areas defined, we can assign them to each
 plot. We also need to define the area of each wind zone. These will be
@@ -1029,6 +1082,24 @@ Beginning with assembling the necessary tables. Forested area is likely
 the most straight forward. We will get the forested acreage of each plot
 and, using a custom expansion factor, estimate the total forested
 acreage in each wind zone.
+
+First, we need some helper functions to compare our estimates with
+‘official’ numbers from FIA. We use the FIA EVALIDATOR API to do this.
+These functions are provided here by following the below steps, but they
+are taken directly from the [FIA EVALIDATOR API
+instructions](https://apps.fs.usda.gov/fiadb-api/).
+
+Now, extract the wind zones at each plot, calculate the new expansion
+factor based on the area of each strata (wind zone) and then compute the
+forested area for each zone.
+
+As a proof of concept, we use the original expansion factor (EXPNS) and
+sum everything within an EVAL_GRP. This should be equivalent to what is
+computed by EVALIDATOR. To check, we use the API to retrieve the
+EVALIDATOR estimate and compare it to ours. They are identical, meaning
+we are calculating correctly for a full evaluation. We then try the same
+calculation using EXPNS_new to estimate the areas for the custom wind
+zones.
 
 ``` r
 ###  first, join the total 'strata' (wind zone) areas to the plot table
@@ -1091,12 +1162,7 @@ HeleneAcres <- rbind(HeleneAcres,
   group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
   summarise(nplots=length(unique(CN)),
             ForestedAcres=sum(ForestedAcres*EXPNS_new))
-```
-
-    ## `summarise()` has grouped output by 'STATECD', 'EVAL_GRP', 'FORTYP', 'County'.
-    ## You can override using the `.groups` argument.
-
-``` r
+  
 HeleneAcres|>
   filter(EVAL_GRP%in% c(122024,132024),FORTYP=="All",County=="All")|>
   group_by(EVAL_GRP) |>
@@ -1115,3 +1181,76 @@ These estimates are close to the totals from EVALIDATOR but a little
 off. This is probably because we are using the total area of the strata
 to calculate the expansion factor instead of using only the forested
 area inside the strata (?).
+
+To do tree level estimates (volume, biomass, etc.) we need the tree
+tables as well as the GRM tables to back-calculate mortality volume or
+biomass for when the tree died.
+
+first the GRM, as this is probably the most complex.
+
+``` r
+library(DBI)
+myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
+
+sql <- "select SUM(GRM.TPAMORT_UNADJ) as estimatedvalue from (select * from fs_nims_fiadb_srs.pop_stratum t where evalid = 132503) POP_STRATUM join (select stratum_cn, count(cn) as p2pointcnt_sy from fs_nims_fiadb_srs.POP_PLOT_STRATUM_ASSGN t where evalid = 132503 and invyr = 2025 group by stratum_cn) PPSA on cn = PPSA.stratum_cn join (select * from fs_nims_fiadb_srs.POP_ESTN_UNIT t where evalid = 132503) PEU on PEU.CN = POP_STRATUM.ESTN_UNIT_CN join fs_nims_fiadb_srs.POP_PLOT_STRATUM_ASSGN POP_PLOT_STRATUM_ASSGN ON (POP_PLOT_STRATUM_ASSGN.STRATUM_CN = POP_STRATUM.CN) JOIN fs_nims_fiadb_srs.plotsnap PLOT ON (POP_PLOT_STRATUM_ASSGN.PLT_CN = PLOT.CN) JOIN fs_nims_fiadb_srs.COND COND ON (COND.PLT_CN = PLOT.CN) JOIN (SELECT P.PREV_PLT_CN, T.* FROM fs_nims_fiadb_srs.plotsnap P JOIN fs_nims_fiadb_srs.TREE_VW T ON (P.CN = T.PLT_CN)) TREE ON ((TREE.CONDID = COND.CONDID) AND (TREE.PLT_CN = COND.PLT_CN)) LEFT OUTER JOIN fs_nims_fiadb_srs.plotsnap PPLOT ON (PLOT.PREV_PLT_CN = PPLOT.CN) LEFT OUTER JOIN fs_nims_fiadb_srs.COND PCOND ON ((TREE.PREVCOND = PCOND.CONDID) AND (TREE.PREV_PLT_CN = PCOND.PLT_CN)) LEFT OUTER JOIN fs_nims_fiadb_srs.TREE_VW PTREE ON (TREE.PREV_TRE_CN = PTREE.CN) LEFT OUTER JOIN fs_nims_fiadb_srs.TREE_GRM_BEGIN TRE_BEGIN ON (TREE.CN = TRE_BEGIN.TRE_CN) LEFT OUTER JOIN fs_nims_fiadb_srs.TREE_GRM_MIDPT TRE_MIDPT ON (TREE.CN = TRE_MIDPT.TRE_CN) LEFT OUTER JOIN (SELECT TRE_CN,DIA_BEGIN,DIA_MIDPT,DIA_END,MICR_COMPONENT_AL_TIMBER AS COMPONENT,MICR_SUBPTYP_GRM_AL_TIMBER AS SUBPTYP_GRM,MICR_TPAMORT_UNADJ_AL_TIMBER AS TPAMORT_UNADJ FROM fs_nims_fiadb_srs.TREE_GRM_COMPONENT) GRM ON (TREE.CN = GRM.TRE_CN) JOIN fs_nims_fiadb_srs.REF_SPECIES ON (TREE.SPCD = REF_SPECIES.SPCD) WHERE REF_SPECIES.WOODLAND = 'N' AND POP_PLOT_STRATUM_ASSGN.Invyr = 2025"
+
+sql <- "select sum(POP_STRATUM.EXPNS) as estimatedvalue from (select * from fs_nims_fiadb_srs.pop_stratum t where evalid = 132503) POP_STRATUM"
+test <- dbGetQuery(myconn,sql)
+
+
+JOIN FS_nims_srs.REF_SPECIES
+ON (TREE.SPCD = REF_SPECIES.SPCD)
+WHERE REF_SPECIES.WOODLAND = 'N'
+AND POP_PLOT_STRATUM_ASSGN.Invyr = 2025
+AND 1 = 1
+"
+
+
+
+
+
+trees <- dbGetQuery(myconn,"select t.*,p.* from fs_nims_fiadb_srs.tree_vw t,fs_nims_fiadb_srs.plotsnap p where p.cn=t.plt_cn and p.eval_grp in (122024,132024,122025,132025)")
+#write.csv(trees,"E:/OneDrive - USDA/Hurricanes/Followup Assessment/plotsHelene.csv")
+trees <- read.csv("E:/OneDrive - USDA/Hurricanes/Followup Assessment/plotsHelene.csv")
+trees <- dbGetQuery(myconn,"select * from fs_nims_fiadb_srs.pop_stratum ps where evalid in (132503,122503)") |>
+  left_join(dbGetQuery(myconn,"select * from fs_nims_fiadb_srs.pop_plot_stratum_assgn where evalid in (122503,132503) and invyr=2025")|>
+              group_by(STRATUM_CN)|>
+              mutate(p2pointcnt_sy=length(unique(CN))),by=join_by(CN==STRATUM_CN)) |>
+  left_join(dbGetQuery(myconn,"select * from fs_nims_fiadb_srs.pop_estn_unit where evalid in (122503,132503)"),by=join_by(ESTN_UNIT_CN==CN))|>
+  left_join(plots|>mutate(CN=as.character(CN)),by=join_by(PLT_CN==CN))|>
+  left_join(dbGetQuery(myconn,"select * from fs_nims_fiadb_srs.tree_vw where statecd in (12,13) and invyr=2025"),by=join_by(PLT_CN,CONDID))
+trees <- trees |>
+  left_join(plot,by=join_by(PREV_PLOT_CN==PLT_CN))
+
+
+JOIN FS_nims_srs.NIMS_COND_VW COND
+ON (COND.PLT_CN = PLOT.CN)
+JOIN (SELECT P.PREV_PLT_CN, T.*
+        FROM FS_nims_srs.NIMS_PLOT_VW P
+      JOIN FS_nims_srs.NIMS_TREE_VW T
+      ON (P.CN = T.PLT_CN)) TREE
+ON ((TREE.CONDID = COND.CONDID) AND (TREE.PLT_CN = COND.PLT_CN))
+###  same as
+#pop_plot_stratum_assgn2 = dbGetQuery(myconn,"select * from fs_nims_fiadb_srs.pop_plot_stratum_assgn where evalid=132503 and invyr=2025")|>
+# group_by(STRATUM_CN)|>
+#  summarise(p2pointcnt_sy=length(unique(CN)))
+ppsa <- pop_stratum |>
+  left_join(pop_plot_stratum_assgn,by=join_by(CN==STRATUM_CN))
+peu <- dbGetQuery(myconn,"select * from fs_nims_fiadb_srs.pop_estn_unit where evalid = 132503")
+
+
+vars = paste0("select p.cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
+                    "c.condid,c.cond_status_cd,c.owncd,c.fortypcd,c.condprop_unadj,c.prop_basis,",
+              "ps.evalid,ps.estn_unit_cn,ps.adj_factor_macr,ps.adj_factor_subp,ps.expns,",
+              "pps.stratum_cn ")
+tabs = "from fs_nims_srs.nims_pop_stratum ps, fs_nims_srs.pop_plot_stratum_assgn pps  fs_nims_srs.nims_plot_vw pplot,,fs_nims_srs.nims_tree_vw ptree,fs_nims_srs.nims_tree_grm_begin tre_begin,fs_nims_srs.nims_tree_grm_midpt tre_midpt,  "
+filts = paste0("where p.eval_grp in (132024,122024,132025,122025) 
+and ps.evalid in(122501,122401,132501,132401)
+and c.plt_cn = p.cn
+and pps.stratum_cn = ps.cn
+and pps.plt_cn = p.cn
+and c.cond_status_cd = 1 and c.condprop_unadj IS NOT NULL")
+
+plots = dbGetQuery(myconn,paste0(vars,tabs,filts))
+plots
+```

@@ -151,47 +151,20 @@ necessary tables and calculate the desired estimates.
 
 Beginning with assembling the necessary tables. Forested area is likely the most straight forward. We will get the 
 forested acreage of each plot and, using a custom expansion factor, estimate the total forested acreage in each wind zone.
+
+First, we need some helper functions to compare our estimates with 'official' numbers from FIA. We use the FIA EVALIDATOR API to do this. These functions are provided here by following the below steps, but they are taken directly from the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). 
 ```{r evalidator_f,eval=TRUE,echo=FALSE}
-fiadb_api_GET = function(url){
+##  to load the functions necessary for the EVALIDATOR API
+##  source them directly from the Github repository for this package
+##  They can also be copied from: https://apps.fs.usda.gov/fiadb-api/
 
-  # make request
-  resp <- httr::GET(url=url)
-  # parse response from JSON to R list
-  respObj <- httr::content(resp, "parsed", encoding = "ISO-8859-1")
+source("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/EVALIDATOR%20API.R")
 
-  # create empty output list
-  outputList = list()
-
-  # add estimates data frame to output list
-  if (! is.null(respObj$estimates)) {
-      outputList$estimates <- format_estimate(respObj$estimates)
-  } else  {
-      print("Problem with URL or API. No estimate returned.")
-      return(list())
-  }
-
-
-  #Use lapply to break apart subtotal list, then call sapply to format with names
-  if (! is.null(respObj$subtotals))
-        outputList$subtotals <- sapply(lapply(respObj$subtotals, "["),
-                                       format_estimate, simplify = F, USE.NAMES = T)
-
-  # totals data frame
-  if (! is.null(respObj$totals))
-    outputList$totals <- format_estimate(respObj$totals)
-
-
-  # add estimate metadata, doesn't need to be reformatted
-  if (! is.null(respObj$metadata)) outputList$metadata <- respObj$metadata
-
-  return(outputList)
-}
-format_estimate = function(respList) {
-
-  return(as.data.frame(do.call(rbind, respList)))
-
-}
 ```
+
+Now, extract the wind zones at each plot, calculate the new expansion factor based on the area of each strata (wind zone) and then compute the forested area for each zone.  
+
+As a proof of concept, we use the original expansion factor (EXPNS) and sum everything within an EVAL_GRP. This should be equivalent to what is computed by EVALIDATOR. To check, we use the API to retrieve the EVALIDATOR estimate and compare it to ours. They are identical, meaning we are calculating correctly for a full evaluation. We then try the same calculation using EXPNS_new to estimate the areas for the custom wind zones. 
 ```{r evalidate,eval=TRUE}
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
@@ -258,7 +231,7 @@ These estimates are close to the totals from EVALIDATOR but a little off. This i
 To do tree level estimates (volume, biomass, etc.) we need the tree tables as well as the GRM tables to back-calculate mortality volume or biomass for when the tree died. 
 
 first the GRM, as this is probably the most complex.
-```{r load-plots,eval=FALSE}
+```{r tree-plots,eval=FALSE}
 library(DBI)
 myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
 
