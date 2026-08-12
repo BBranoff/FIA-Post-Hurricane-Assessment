@@ -32,6 +32,8 @@ and c.cond_status_cd = 1 and c.condprop_unadj IS NOT NULL")
 #               default null on conversion error,
 #               'YYYY-MM-DD') >= date '2024-09-26'") 
 plots = dbGetQuery(myconn,paste0(vars,tabs,filts))
+##  also, convert the plots to a spatial object
+plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
 plots
 ```
 ```{r load-plots-hidden,eval=TRUE,echo=FALSE,warning=FALSE,message=FALSE}
@@ -53,9 +55,11 @@ plots |> head() |>
 The above is a small subset, but there are around 8000 plots that have been collected since the storm in Georgia and Florida.
 
 Now, use the Cyclones package to recreate the winds for Helene and create wind intensity zones. For now, Cyclones is only available on
-Github, so an extra package ("remotes") is required to install it. For this workflow, the hurricane wind information is provided as part of the download and there is no need to recalculate, but the process is demonstrated.
+Github, so an extra package ("remotes") is required to install it. For this workflow, the hurricane wind information is provided as part of the download and there is no need to recalculate, but the process is demonstrated anyways.
+
+To download the hurricane data, as well as some other spatial boundary files of the USA and counties:
 ```{r download-winds,eval=TRUE}
-HeleneStuff <- readRDS("E:/OneDrive - USDA/Hurricanes/Followup Assessment/FIA-Post-Hurricane-Assessment/data/Helene.RDS")
+HeleneStuff <- readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))
 Helene <- HeleneStuff$storm
 Helene_extents <- HeleneStuff$extent
 Helene_winds <- lapply(HeleneStuff$winds,unwrap)
@@ -64,8 +68,8 @@ counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cult
                         layer = "ne_10m_admin_2_counties")
 ```
 
-
-First, get the storm track information. This is the foundation for being able to retrieve the winds (and rain and storm surge).
+Below demonstrates how the above hurricane data was obtained. First the Cyclones package is downloaded and installed and it is used to ingest the necessary data and process into the wind fields we need.  
+First, download the package and get the storm track information. This is the foundation for being able to retrieve the winds (and rain and storm surge).
 ```{r load-winds,eval=FALSE}
 ##  install
 install.packages('remotes')
@@ -74,18 +78,10 @@ library(Cyclones)
 library(terra)
 library(sf)
 library(dplyr)
-##  we will use the rnaturalearth package to get state boundaries
-usa <- rnaturalearth::ne_countries(country="united states of america",scale=10)
-##  can also download the county boundaries
-counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
-                        layer = "ne_10m_admin_2_counties")
-##  also, convert the plots to a spatial object
-plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
 ##  get the storm information
 Helene <- get_storms(name="HELENE",season=2024)
 Helene
 ```
-
 
 Now, calculate the wind field. Here we just use a theoretical (Boose) equation based on the maximum wind speed.
 We calculate the wind onto a grid with a spatial resolution of 5km.
@@ -117,6 +113,8 @@ Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
 plot(Helene_Cat)
 plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
 ```
+
+The Helene hurricane data is now processed and ready for overlays with the plots. 
 
 With the hurricane intensity areas defined, we can assign them to each plot. We also need to define the area of each wind zone. 
 These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. 
