@@ -5,7 +5,12 @@ date: "2026-08-10"
 output: github_document
 always_allow_html: true
 ---
-
+```{r load-packages,warning=FALSE,message=FALSE,echo=FALSE}
+library(terra)
+library(Cyclones)
+library(sf)
+library(dplyr)
+```
 # FIA-Post-Hurricane-Assessment
 Hurricane damage/loss estimates from collected plots after storms
 
@@ -14,37 +19,30 @@ Start by loading the plots from nims_srs_db.   Here, using the DBI library, whic
 Once setup, can connect to the "fiadb01p" data base and access any tables you are authorized to access. Then, we can use SQL queries passed as string 
 arguments to retrieve the desired data. Here we are asking for the Florida (132024, 132025) and Georgia (122024, 122025) evaluations since hurricane Helene.
 For now, we are only asking for the plots, their conditions, and their associated strata variables. Their trees and reference tables will be joined later.  
-```{r load-plots,eval=FALSE}
+```{r load-plots,cache=TRUE,warning=FALSE,message=FALSE}
 library(DBI)
+library(sf)
+library(knitr)
+library(kableExtra)
 myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
 vars = paste0("select p.cn,p.prev_plt_cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
                     "c.condid,c.cond_status_cd,c.owncd,c.fortypcd,c.condprop_unadj,c.prop_basis,",
               "ps.evalid,ps.estn_unit_cn,ps.adj_factor_macr,ps.adj_factor_subp,ps.expns,",
-              "pps.stratum_cn ")
-tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps "
+              "pps.stratum_cn,",
+              "PEU.p1pntcnt_eu,PEU.area_used ")
+tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps,fs_nims_fiadb_srs.POP_ESTN_UNIT PEU "
 filts = paste0("where p.eval_grp in (132024,122024,132025,122025) 
-and ps.evalid in(122501,122401,132501,132401)
+and ps.evalid in(122501,122401,132501,132401,122500,122400,132500,132400)
 and c.plt_cn = p.cn
 and pps.stratum_cn = ps.cn
 and pps.plt_cn = p.cn
+and PEU.CN = PS.ESTN_UNIT_CN
 and c.cond_status_cd = 1 and c.condprop_unadj IS NOT NULL")
 #and to_date(p.measyear || '-' || LPAD(p.measmon, 2, '0') || '-' || LPAD(p.measday, 2, '0')
 #               default null on conversion error,
 #               'YYYY-MM-DD') >= date '2024-09-26'") 
 plots = dbGetQuery(myconn,paste0(vars,tabs,filts))
 ##  also, convert the plots to a spatial object
-plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
-plots
-```
-```{r load-plots-hidden,eval=TRUE,echo=FALSE,warning=FALSE,message=FALSE}
-library(Cyclones)
-library(terra)
-library(sf)
-library(dplyr)
-library(knitr)
-library(kableExtra)
-#write.csv(plots,"E:/OneDrive - USDA/Hurricanes/Followup Assessment/plotsHelene.csv")
-plots <- read.csv("E:/OneDrive - USDA/Hurricanes/Followup Assessment/plotsHelene.csv")
 plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
 plots |> head() |>
   kable(format='html')|>
@@ -57,89 +55,119 @@ The above is a small subset, but there are around 8000 plots that have been coll
 Now, use the Cyclones package to recreate the winds for Helene and create wind intensity zones. For now, Cyclones is only available on
 Github, so an extra package ("remotes") is required to install it. For this workflow, the hurricane wind information is provided as part of the download and there is no need to recalculate, but the process is demonstrated anyways.
 
-To download the hurricane data, as well as some other spatial boundary files of the USA and counties:
-```{r download-winds,eval=TRUE}
-HeleneStuff <- readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))
-Helene <- HeleneStuff$storm
-Helene_extents <- HeleneStuff$extent
-Helene_winds <- lapply(HeleneStuff$winds,unwrap)
-usa <- rnaturalearth::ne_countries(country="united states of america",scale=10)
-counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
-                        layer = "ne_10m_admin_2_counties")
-```
-
 Below demonstrates how the above hurricane data was obtained. First the Cyclones package is downloaded and installed and it is used to ingest the necessary data and process into the wind fields we need.  
 First, download the package and get the storm track information. This is the foundation for being able to retrieve the winds (and rain and storm surge).
-```{r load-winds,eval=FALSE}
-##  install
-install.packages('remotes')
-remotes::install_github("BBranoff/Cyclones")
+```{r load-winds,eval=TRUE,cache=TRUE,message=FALSE,warning=FALSE}
+##  install, only needed once
+# install.packages('remotes')
+# remotes::install_github("BBranoff/Cyclones@development")
+
 library(Cyclones)
-library(terra)
-library(sf)
-library(dplyr)
 ##  get the storm information
-Helene <- get_storms(name="HELENE",season=2024)
-Helene
+Helene <- get_storms(name="HELENE",season=2024,erddap=FALSE)
+Helene$HELENE_2024_NA_2024268N17278
 ```
 
 Now, calculate the wind field. Here we just use a theoretical (Boose) equation based on the maximum wind speed.
 We calculate the wind onto a grid with a spatial resolution of 5km.
 
-```{r winds,eval=FALSE}
+```{r winds,eval=TRUE,cache=TRUE,message=FALSE,warning=FALSE,fig.width=9,fig.height=5,fig.cap = "Fig 1. Hurricane Helene's maximum sustained winds in meters per second."}
 ###  first, interpolate the spatial wind information to every 30 mins
 Helene_extents <- make_extents(Helene,t_res=30)
 ###  then interpolate spatially as a raster
 Helene_winds <- get_wind(Helene_extents,method="Boose",agg=TRUE,s_res=5000)
-###  classify the maximum wind speed into the Saffir-Simpson scale
-Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
-                       matrix(c(0,33,0,
-                                33,43,1,
-                                43,50,2,
-                                50,60,3,
-                                60,70,4,
-                                70,Inf,5),ncol=3,byrow=TRUE),include.lowest=TRUE))
-plot(Helene_Cat)
-plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
+
+##  get some boundaries, mostly for display
+##  county boundaries
+counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
+                        layer = "ne_10m_admin_2_counties")
+usa <- counties|>filter(REGION_COD %in% c(12,13,47,45,37))|>group_by(REGION_COD)|>summarise()
+
+library(terra)
+plot(Helene_winds$boose$max_msw,main="Maximum Sustained Winds (m/s)")
+plot(st_geometry(st_transform(usa,crs(Helene_winds$boose$max_msw))),add=TRUE)
 ```
-```{r winds-hidden,eval=TRUE,echo=FALSE,fig.width=9,fig.height=5,fig.cap = "Fig 1. Hurricane Helene's wind field, categorized into intensity zones." }
-Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
+
+We can then categorize the wind into the familiar Saffir-Simpson scale. These categories will be our intensity zones and they will be the on-the-fly strata that we use to calculate sub-complete evaluation estimates. 
+
+```{r load-raster,warning=FALSE,message=FALSE,echo=FALSE}
+##  cacheing doesnt work on raster objects, because they are held in memory
+Helene_winds <- terra::unwrap(readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))$winds$boose)
+FIAstates <- read_sf("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/rs_states.gpkg")
+FIA_units <- read_sf("//usda.net/fs/FS/RD/SRS/Science/FIA/Collaboration/SRS_GIS_Layers/SRS/srs_unit.shp")
+source("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/EVALIDATOR%20API.R")
+```
+```{r winds-hidden,eval=TRUE,fig.width=9,fig.height=5,fig.cap = "Fig 2. Hurricane Helene's wind field, categorized into intensity zones." }
+###  classify the maximum wind speed into the Saffir-Simpson scale
+Helene_Cat <- as.factor(classify(Helene_winds$max_msw,
                        matrix(c(0,33,0,
                                 33,43,1,
                                 43,50,2,
                                 50,60,3,
                                 60,70,4,
                                 70,Inf,5),ncol=3,byrow=TRUE),include.lowest=TRUE))
-plot(Helene_Cat)
+plot(Helene_Cat,main="Wind Intensity Categories")
 plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
 ```
 
 The Helene hurricane data is now processed and ready for overlays with the plots. 
 
 With the hurricane intensity areas defined, we can assign them to each plot. We also need to define the area of each wind zone. 
-These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. 
+These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. This is done two ways. The first is using vectors (shapefiles) of the strata and the 'st_area()' function to calculate the areas. The second is using the raster image and counting the number of pixels in each strata, then multiplying by the resolution to get total area. 
 
-```{r extract,eval=TRUE,fig.width=9,fig.height=9,fig.cap = "Fig 2. Hurricane Helene's wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." }
+```{r extract,eval=TRUE,fig.width=9,fig.height=9,fig.cap = "Fig 3. Hurricane Helene's wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." }
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
-Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.001)),crs(Helene_Cat))))
-##  now calculate area of each wind zone
+Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(FIAstates,crs(Helene_Cat_plots))))#st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.1)),crs(Helene_Cat))))
+
+###  for the vector approach, convert to vector
+Helene_Cat_shape <- as.polygons(Helene_Cat)
+## intersect with the states
+Helene_Cat_shape <- st_intersection(st_as_sf(Helene_Cat_shape), counties|>filter(REGION_COD %in% c(12,13))|>group_by(REGION_COD)|>summarise()|>st_transform(crs(Helene_Cat)))
+##  calculate the area and covert to acres
+Helene_Cat_shape$area.m <- st_area(Helene_Cat_shape)
+Helene_Cat_shape$area.ac <- Helene_Cat_shape$area.m/4046.86
+
+
+##  now the raster approach
 ##  important to do this while the raster is in projected, not geographic, coordinates
 ##  also important to do by state, as this is how the evaluation is done
 Areas12 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==12),crs(Helene_Cat_plots)))))
 Areas13 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==13),crs(Helene_Cat_plots)))))
 Areas <- rbind(data.frame(Areas12)|>mutate(STATECD=12),
-               data.frame(Areas13)|>mutate(STATECD=13))
-##  this is the number of pixels of each wind zone
-##  multiply by the raster resolution to get the area, in square meters
-Areas$Freq <- Areas$Freq*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2]
-##  then convert to acres
-Areas$Acres <- Areas$Freq/4046.86
+               data.frame(Areas13)|>mutate(STATECD=13)) |>
+  rename(npixels=Freq)|>
+  mutate(area.raster.m = npixels*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2],
+         area.raster.ac = area.raster.m/4046.86)|>
+  group_by(STATECD)|>
+  mutate(state_tot_pixels=sum(npixels))|>
+  left_join(FIAstates|>
+  filter(STATEFP %in% c(12,13))|>
+    mutate(STATECD=as.numeric(STATEFP)) |>
+  st_transform(st_crs(Helene_Cat_shape))%>%
+    mutate(statearea.ac=as.numeric(st_area(.))/4046.86),by=join_by(STATECD))|>st_drop_geometry()|>ungroup()
+
+### compare the two
+Areas <- Areas |> left_join(Helene_Cat_shape|>
+                     mutate(REGION_COD=as.numeric(REGION_COD))|>
+  st_drop_geometry(),
+  by=join_by(Var1==max_msw,STATECD==REGION_COD))|>
+  ###  also compare with FIA shapefile
+  left_join(FIAstates|>
+  filter(STATEFP %in% c(12,13))|>
+  st_transform(st_crs(Helene_Cat_shape))|>
+  st_intersection(st_as_sf(as.polygons(Helene_Cat)))%>%
+  mutate(AreaFIA.m=as.numeric(st_area(.)),
+         AreaFIA.ac=AreaFIA.m/4046.86,
+         STATEFP=as.numeric(STATEFP)),by=join_by(Var1==max_msw,STATECD==STATEFP))
+Areas
+
 
 ###  project onto geographic coordinates
-Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
-plot(Helene_Cat_plots)
+#Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
+Helene_Cat_shape <- st_transform(Helene_Cat_shape,4326)
+plot(Helene_Cat_shape['max_msw'],key.pos = NULL, reset = FALSE)
 ###  overlay the plots
 plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.01)
 plot(st_geometry(usa),add=TRUE,border="darkgrey")
@@ -153,7 +181,7 @@ Beginning with assembling the necessary tables. Forested area is likely the most
 forested acreage of each plot and, using a custom expansion factor, estimate the total forested acreage in each wind zone.
 
 First, we need some helper functions to compare our estimates with 'official' numbers from FIA. We use the FIA EVALIDATOR API to do this. These functions are provided here by following the below steps, but they are taken directly from the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). 
-```{r evalidator_f,eval=TRUE,echo=FALSE}
+```{r evalidator_f,eval=FALSE,echo=FALSE}
 ##  to load the functions necessary for the EVALIDATOR API
 ##  source them directly from the Github repository for this package
 ##  They can also be copied from: https://apps.fs.usda.gov/fiadb-api/
@@ -169,22 +197,27 @@ As a proof of concept, we use the original expansion factor (EXPNS) and sum ever
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
 plots_geo<- plots_geo |>
+  select(CN:WindZone) |>
+  ungroup() |>
   left_join(Areas,by=join_by(WindZone==Var1,STATECD))|>
-  group_by(WindZone)|>
-  mutate(EXPNS_new = Acres/length(unique(CN)))
+  group_by(EVAL_GRP,EVALID,WindZone)|>
+  mutate(nplots = length(unique(CN)),
+         EXPNS_new_raster = (npixels/state_tot_pixels)*(statearea.ac/nplots))
 
 ##  first testing the concept on the full evaluation with the original expansion factors
 ForestedAcres <- plots_geo |>
+  st_drop_geometry()|>
   mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
                                  CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
   filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024))|>
   group_by(EVAL_GRP)|>
-  summarise(ForestedAcres=sum(ForestedAcres*EXPNS))|>
-  st_drop_geometry()
-###  our custom estimate versus EVALIDATOR
-ForestedAcres |>
+  summarise(ForestedAcres_orig=sum(ForestedAcres*EXPNS),
+            ForestedAcres_new=sum(ForestedAcres*EXPNS_new_raster))|>
   mutate(EVALIDATORacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
                              fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
+###  our custom estimate versus EVALIDATOR
+ForestedAcres
+  
 
 ```
 
@@ -198,29 +231,32 @@ requested types.
 ##  first testing the concept on the full evaluation with the original expansion factors
 HeleneAcres <- plots_geo |>st_drop_geometry()|>
   mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
-                                 CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
-  #filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024),
-  #       (FORTYPCD>=140&FORTYPCD<=150)|(FORTYPCD>=160&FORTYPCD<=170)|(FORTYPCD>=400&FORTYPCD<=500)|(FORTYPCD>=970&FORTYPCD<=980))|>  #limit to common forest types
-    mutate(FORTYP = if_else(FORTYPCD>=140&FORTYPCD<=150,"longleaf/slash pine",
-                          if_else(FORTYPCD>=160&FORTYPCD<=170,"loblolly/shortleaf pine",
-                                  if_else(FORTYPCD>=400&FORTYPCD<=500,"oak/pine",
-                                          if_else(FORTYPCD>=970&FORTYPCD<=980,"woodland hardwoods","all others")))))|>
-  left_join(counties|>filter(REGION_COD %in% c(12,13))|>mutate(COUNTYCD=as.numeric(substr(CODE_LOCAL,3,6)),
-                                                               REGION_COD=as.numeric(REGION_COD))|>
-              select(NAME,REGION_COD,COUNTYCD)|>rename(County=NAME),by=join_by(STATECD==REGION_COD,COUNTYCD))
+                                 CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP)) |>
+  filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024))|>
+  group_by(EVAL_GRP)|>
+  summarise(ForestedAcres_orig=sum(ForestedAcres*EXPNS),
+            ForestedAcres_new=sum(ForestedAcres*EXPNS_new_raster))|>
+  st_drop_geometry()
+  # #       (FORTYPCD>=140&FORTYPCD<=150)|(FORTYPCD>=160&FORTYPCD<=170)|(FORTYPCD>=400&FORTYPCD<=500)|(FORTYPCD>=970&FORTYPCD<=980))|>  #limit to common forest types
+  #   mutate(FORTYP = if_else(FORTYPCD>=140&FORTYPCD<=150,"longleaf/slash pine",
+  #                         if_else(FORTYPCD>=160&FORTYPCD<=170,"loblolly/shortleaf pine",
+  #                                 if_else(FORTYPCD>=400&FORTYPCD<=500,"oak/pine",
+  #                                         if_else(FORTYPCD>=970&FORTYPCD<=980,"woodland hardwoods","all others")))))|>
+  # left_join(counties|>filter(REGION_COD %in% c(12,13))|>mutate(COUNTYCD=as.numeric(substr(CODE_LOCAL,3,6)),
+  #                                                              REGION_COD=as.numeric(REGION_COD))|>
+  #             select(NAME,REGION_COD,COUNTYCD)|>rename(County=NAME),by=join_by(STATECD==REGION_COD,COUNTYCD))
   
-HeleneAcres <- rbind(HeleneAcres,
-                     HeleneAcres|>mutate(FORTYP="All",County="All"),
-                     HeleneAcres|>mutate(FORTYP="All"),
-                     HeleneAcres|>mutate(County="All"))|>
-  group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
-  summarise(nplots=length(unique(CN)),
-            ForestedAcres=sum(ForestedAcres*EXPNS_new))
+# HeleneAcres <- rbind(HeleneAcres,
+#                      HeleneAcres|>mutate(FORTYP="All",County="All"),
+#                      HeleneAcres|>mutate(FORTYP="All"),
+#                      HeleneAcres|>mutate(County="All"))|>
+#   group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
+#   summarise(ForestedAcres=sum(ForestedAcres*EXPNS_new_FIA))
   
 HeleneAcres|>
-  filter(EVAL_GRP%in% c(122024,132024),FORTYP=="All",County=="All")|>
+  filter(EVAL_GRP%in% c(122024,132024))|>#,FORTYP=="All",County=="All")|>
   group_by(EVAL_GRP) |>
-  summarise(ForestedAcres=sum(ForestedAcres,na.rm=TRUE))|>
+  summarise(ForestedAcres=sum(ForestedAcres_new,na.rm=TRUE))|>
   mutate(EVALIDATORSacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
                                                                                                                                                                                         fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 ```

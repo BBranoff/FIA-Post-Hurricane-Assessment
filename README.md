@@ -19,6 +19,9 @@ Their trees and reference tables will be joined later.
 
 ``` r
 library(DBI)
+library(sf)
+library(knitr)
+library(kableExtra)
 myconn <- dbConnect(odbc::odbc(), "fiadb01p", timeout = 10) # function change w/DBI
 vars = paste0("select p.cn,p.prev_plt_cn,p.plot_status_cd,p.invyr,p.eval_grp,p.statecd,p.countycd,p.measyear,p.measmon,p.measday,p.lat,p.lon,",
                     "c.condid,c.cond_status_cd,c.owncd,c.fortypcd,c.condprop_unadj,c.prop_basis,",
@@ -26,7 +29,7 @@ vars = paste0("select p.cn,p.prev_plt_cn,p.plot_status_cd,p.invyr,p.eval_grp,p.s
               "pps.stratum_cn ")
 tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps "
 filts = paste0("where p.eval_grp in (132024,122024,132025,122025) 
-and ps.evalid in(122501,122401,132501,132401)
+and ps.evalid in(122501,122401,132501,132401,122500,122400,132500,132400)
 and c.plt_cn = p.cn
 and pps.stratum_cn = ps.cn
 and pps.plt_cn = p.cn
@@ -37,7 +40,10 @@ and c.cond_status_cd = 1 and c.condprop_unadj IS NOT NULL")
 plots = dbGetQuery(myconn,paste0(vars,tabs,filts))
 ##  also, convert the plots to a spatial object
 plots_geo <- st_as_sf(plots,coords=c("LON","LAT"),crs=4326)
-plots
+plots |> head() |>
+  kable(format='html')|>
+  kable_styling() |>
+  scroll_box(width='100%')
 ```
 
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
@@ -48,17 +54,12 @@ plots
 
 <tr>
 
-<th style="text-align:right;">
-
-X
-</th>
-
-<th style="text-align:right;">
+<th style="text-align:left;">
 
 CN
 </th>
 
-<th style="text-align:right;">
+<th style="text-align:left;">
 
 PREV_PLT_CN
 </th>
@@ -148,7 +149,7 @@ PROP_BASIS
 EVALID
 </th>
 
-<th style="text-align:right;">
+<th style="text-align:left;">
 
 ESTN_UNIT_CN
 </th>
@@ -168,7 +169,7 @@ ADJ_FACTOR_SUBP
 EXPNS
 </th>
 
-<th style="text-align:right;">
+<th style="text-align:left;">
 
 STRATUM_CN
 </th>
@@ -181,148 +182,14 @@ STRATUM_CN
 
 <tr>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1
-</td>
-
-<td style="text-align:right;">
-
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-7.185623e+14
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-2025
-</td>
-
-<td style="text-align:right;">
-
-132025
-</td>
-
-<td style="text-align:right;">
-
-13
-</td>
-
-<td style="text-align:right;">
-
-155
-</td>
-
-<td style="text-align:right;">
-
-2025
-</td>
-
-<td style="text-align:right;">
-
-11
-</td>
-
-<td style="text-align:right;">
-
-7
-</td>
-
-<td style="text-align:right;">
-
-31.59123
-</td>
-
-<td style="text-align:right;">
-
--83.06859
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-46
-</td>
-
-<td style="text-align:right;">
-
-608
-</td>
-
-<td style="text-align:right;">
-
-0.832980
+1682647303290487
 </td>
 
 <td style="text-align:left;">
 
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132501
-</td>
-
-<td style="text-align:right;">
-
-1.99555e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1.000000
-</td>
-
-<td style="text-align:right;">
-
-6042.554
-</td>
-
-<td style="text-align:right;">
-
-1.995523e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-2
-</td>
-
-<td style="text-align:right;">
-
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-7.185623e+14
+718562301290487
 </td>
 
 <td style="text-align:right;">
@@ -352,161 +219,32 @@ SUBP
 
 <td style="text-align:right;">
 
-2026
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-15
-</td>
-
-<td style="text-align:right;">
-
-31.51980
-</td>
-
-<td style="text-align:right;">
-
--82.65338
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
-46
-</td>
-
-<td style="text-align:right;">
-
-161
-</td>
-
-<td style="text-align:right;">
-
-0.816345
-</td>
-
-<td style="text-align:left;">
-
-SUBP
-</td>
-
-<td style="text-align:right;">
-
-132501
-</td>
-
-<td style="text-align:right;">
-
-1.99555e+15
-</td>
-
-<td style="text-align:right;">
-
-0
-</td>
-
-<td style="text-align:right;">
-
-1.000346
-</td>
-
-<td style="text-align:right;">
-
-5798.479
-</td>
-
-<td style="text-align:right;">
-
-1.995523e+15
-</td>
-
-</tr>
-
-<tr>
-
-<td style="text-align:right;">
-
-3
-</td>
-
-<td style="text-align:right;">
-
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-7.185616e+14
-</td>
-
-<td style="text-align:right;">
-
-1
-</td>
-
-<td style="text-align:right;">
-
 2025
 </td>
 
 <td style="text-align:right;">
 
-132025
+12
 </td>
 
 <td style="text-align:right;">
 
-13
+9
 </td>
 
 <td style="text-align:right;">
 
-255
+31.43287
 </td>
 
 <td style="text-align:right;">
 
-2026
+-82.67843
 </td>
 
 <td style="text-align:right;">
 
-3
-</td>
-
-<td style="text-align:right;">
-
-26
-</td>
-
-<td style="text-align:right;">
-
-33.29923
-</td>
-
-<td style="text-align:right;">
-
--84.16433
-</td>
-
-<td style="text-align:right;">
-
-1
+2
 </td>
 
 <td style="text-align:right;">
@@ -521,12 +259,12 @@ SUBP
 
 <td style="text-align:right;">
 
-161
+520
 </td>
 
 <td style="text-align:right;">
 
-0.750000
+0.250000
 </td>
 
 <td style="text-align:left;">
@@ -536,12 +274,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132501
+132500
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.99555e+15
+1995549996290487
 </td>
 
 <td style="text-align:right;">
@@ -551,36 +289,31 @@ SUBP
 
 <td style="text-align:right;">
 
-1.002237
+1.000000
 </td>
 
 <td style="text-align:right;">
 
-6123.728
+5928.287
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.995523e+15
+1995522657290487
 </td>
 
 </tr>
 
 <tr>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-4
+1682647304290487
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-7.185623e+14
+718562302290487
 </td>
 
 <td style="text-align:right;">
@@ -668,9 +401,9 @@ SUBP
 132501
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.99555e+15
+1995550003290487
 </td>
 
 <td style="text-align:right;">
@@ -688,28 +421,23 @@ SUBP
 5798.479
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.995523e+15
+1995522681290487
 </td>
 
 </tr>
 
 <tr>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-5
+1682647307290487
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-7.185618e+14
+718562305290487
 </td>
 
 <td style="text-align:right;">
@@ -734,7 +462,7 @@ SUBP
 
 <td style="text-align:right;">
 
-35
+3
 </td>
 
 <td style="text-align:right;">
@@ -744,22 +472,22 @@ SUBP
 
 <td style="text-align:right;">
 
-3
+1
 </td>
 
 <td style="text-align:right;">
 
-24
+6
 </td>
 
 <td style="text-align:right;">
 
-33.33348
+31.20386
 </td>
 
 <td style="text-align:right;">
 
--83.93474
+-82.75826
 </td>
 
 <td style="text-align:right;">
@@ -794,12 +522,12 @@ SUBP
 
 <td style="text-align:right;">
 
-132501
+132500
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.99555e+15
+1995549996290487
 </td>
 
 <td style="text-align:right;">
@@ -809,36 +537,31 @@ SUBP
 
 <td style="text-align:right;">
 
-1.000934
+1.000000
 </td>
 
 <td style="text-align:right;">
 
-5857.771
+5928.287
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.995523e+15
+1995522657290487
 </td>
 
 </tr>
 
 <tr>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-6
+1682646798290487
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.682647e+15
-</td>
-
-<td style="text-align:right;">
-
-7.185618e+14
+718561796290487
 </td>
 
 <td style="text-align:right;">
@@ -926,9 +649,9 @@ SUBP
 132501
 </td>
 
-<td style="text-align:right;">
+<td style="text-align:left;">
 
-1.99555e+15
+1995550004290487
 </td>
 
 <td style="text-align:right;">
@@ -946,9 +669,257 @@ SUBP
 5872.472
 </td>
 
+<td style="text-align:left;">
+
+1995522694290487
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+1682646800290487
+</td>
+
+<td style="text-align:left;">
+
+718561798290487
+</td>
+
 <td style="text-align:right;">
 
-1.995523e+15
+1
+</td>
+
+<td style="text-align:right;">
+
+2025
+</td>
+
+<td style="text-align:right;">
+
+132025
+</td>
+
+<td style="text-align:right;">
+
+13
+</td>
+
+<td style="text-align:right;">
+
+221
+</td>
+
+<td style="text-align:right;">
+
+2026
+</td>
+
+<td style="text-align:right;">
+
+5
+</td>
+
+<td style="text-align:right;">
+
+18
+</td>
+
+<td style="text-align:right;">
+
+33.98447
+</td>
+
+<td style="text-align:right;">
+
+-82.82930
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+46
+</td>
+
+<td style="text-align:right;">
+
+161
+</td>
+
+<td style="text-align:right;">
+
+0.750000
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132501
+</td>
+
+<td style="text-align:left;">
+
+1995550004290487
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.002237
+</td>
+
+<td style="text-align:right;">
+
+6123.728
+</td>
+
+<td style="text-align:left;">
+
+1995522693290487
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+1682646814290487
+</td>
+
+<td style="text-align:left;">
+
+718561812290487
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+2025
+</td>
+
+<td style="text-align:right;">
+
+132025
+</td>
+
+<td style="text-align:right;">
+
+13
+</td>
+
+<td style="text-align:right;">
+
+317
+</td>
+
+<td style="text-align:right;">
+
+2026
+</td>
+
+<td style="text-align:right;">
+
+5
+</td>
+
+<td style="text-align:right;">
+
+24
+</td>
+
+<td style="text-align:right;">
+
+33.67671
+</td>
+
+<td style="text-align:right;">
+
+-82.78377
+</td>
+
+<td style="text-align:right;">
+
+3
+</td>
+
+<td style="text-align:right;">
+
+1
+</td>
+
+<td style="text-align:right;">
+
+46
+</td>
+
+<td style="text-align:right;">
+
+503
+</td>
+
+<td style="text-align:right;">
+
+0.049886
+</td>
+
+<td style="text-align:left;">
+
+SUBP
+</td>
+
+<td style="text-align:right;">
+
+132501
+</td>
+
+<td style="text-align:left;">
+
+1995550007290487
+</td>
+
+<td style="text-align:right;">
+
+0
+</td>
+
+<td style="text-align:right;">
+
+1.000934
+</td>
+
+<td style="text-align:right;">
+
+5857.771
+</td>
+
+<td style="text-align:left;">
+
+1995522690290487
 </td>
 
 </tr>
@@ -969,19 +940,6 @@ this workflow, the hurricane wind information is provided as part of the
 download and there is no need to recalculate, but the process is
 demonstrated anyways.
 
-To download the hurricane data, as well as some other spatial boundary
-files of the USA and counties:
-
-``` r
-HeleneStuff <- readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))
-Helene <- HeleneStuff$storm
-Helene_extents <- HeleneStuff$extent
-Helene_winds <- lapply(HeleneStuff$winds,unwrap)
-usa <- rnaturalearth::ne_countries(country="united states of america",scale=10)
-counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
-                        layer = "ne_10m_admin_2_counties")
-```
-
 Below demonstrates how the above hurricane data was obtained. First the
 Cyclones package is downloaded and installed and it is used to ingest
 the necessary data and process into the wind fields we need.  
@@ -990,17 +948,41 @@ the foundation for being able to retrieve the winds (and rain and storm
 surge).
 
 ``` r
-##  install
-install.packages('remotes')
-remotes::install_github("BBranoff/Cyclones")
+##  install, only needed once
+# install.packages('remotes')
+# remotes::install_github("BBranoff/Cyclones@development")
+
 library(Cyclones)
-library(terra)
-library(sf)
-library(dplyr)
 ##  get the storm information
-Helene <- get_storms(name="HELENE",season=2024)
-Helene
+Helene <- get_storms(name="HELENE",season=2024,erddap=FALSE)
 ```
+
+    ## Downloading IBTrACS from: https://www.ncei.noaa.gov/products/international-best-track-archive
+
+``` r
+Helene$HELENE_2024_NA_2024268N17278
+```
+
+    ## # A tibble: 45 × 29
+    ##    ID       SID   USA_ATCF_ID SEASON NAME  BASIN ISO_TIME            LAT     LON
+    ##    <chr>    <chr> <chr>       <chr>  <chr> <chr> <dttm>              <chr> <dbl>
+    ##  1 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-23 12:00:00 17.2  -81.7
+    ##  2 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-23 15:00:00 17.5  -81.8
+    ##  3 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-23 18:00:00 17.8  -81.9
+    ##  4 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-23 21:00:00 18.0  -82  
+    ##  5 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-24 00:00:00 18.2  -82.2
+    ##  6 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-24 03:00:00 18.4  -82.5
+    ##  7 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-24 06:00:00 18.6  -82.8
+    ##  8 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-24 09:00:00 18.9  -83.2
+    ##  9 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-24 12:00:00 19.2  -83.7
+    ## 10 HELENE_… 2024… AL092024    2024   HELE… NA    2024-09-24 15:00:00 19.3  -84.2
+    ## # ℹ 35 more rows
+    ## # ℹ 20 more variables: USA_SSHS <int>, STORM_SPEED <chr>, CONS_WIND <dbl>,
+    ## #   CONS_PRES <dbl>, CONS_RMW <dbl>, CONS_ROCI <dbl>, CONS_POCI <dbl>,
+    ## #   CONS_EYE <dbl>, CONS_R34_NE <dbl>, CONS_R50_NE <dbl>, CONS_R64_NE <dbl>,
+    ## #   CONS_R34_SE <dbl>, CONS_R50_SE <dbl>, CONS_R64_SE <dbl>, CONS_R34_SW <dbl>,
+    ## #   CONS_R50_SW <dbl>, CONS_R64_SW <dbl>, CONS_R34_NW <dbl>, CONS_R50_NW <dbl>,
+    ## #   CONS_R64_NW <dbl>
 
 Now, calculate the wind field. Here we just use a theoretical (Boose)
 equation based on the maximum wind speed. We calculate the wind onto a
@@ -1009,24 +991,61 @@ grid with a spatial resolution of 5km.
 ``` r
 ###  first, interpolate the spatial wind information to every 30 mins
 Helene_extents <- make_extents(Helene,t_res=30)
+```
+
+    ## Building wind extents for  HELENE_2024_NA_2024268N17278  : % 0.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 0.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 1.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 1.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 2.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 2.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 3.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 3.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 4.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 4.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 5.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 5.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 5.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 6.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 6.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 7.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 7.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 7.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 8.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 8.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 9.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 9.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 9.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 10.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 10.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 11.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 11.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 11.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 12.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 12.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 13Building wind extents for  HELENE_2024_NA_2024268N17278  : % 13.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 13.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 14.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 14.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 15Building wind extents for  HELENE_2024_NA_2024268N17278  : % 15.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 15.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 16.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 16.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 17Building wind extents for  HELENE_2024_NA_2024268N17278  : % 17.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 17.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 18.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 18.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 19Building wind extents for  HELENE_2024_NA_2024268N17278  : % 19.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 19.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 20.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 20.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 20.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 21.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 21.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 22.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 22.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 22.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 23.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 23.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 24.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 24.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 24.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 25.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 25.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 26.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 26.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 26.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 27.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 27.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 28.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 28.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 28.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 29.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 29.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 30Building wind extents for  HELENE_2024_NA_2024268N17278  : % 30.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 30.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 31.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 31.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 32Building wind extents for  HELENE_2024_NA_2024268N17278  : % 32.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 32.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 33.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 33.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 34Building wind extents for  HELENE_2024_NA_2024268N17278  : % 34.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 34.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 35.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 35.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 36Building wind extents for  HELENE_2024_NA_2024268N17278  : % 36.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 36.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 37.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 37.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 37.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 38.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 38.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 39.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 39.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 39.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 40.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 40.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 41.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 41.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 41.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 42.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 42.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 43.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 43.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 43.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 44.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 44.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 45.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 45.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 45.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 46.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 46.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 47Building wind extents for  HELENE_2024_NA_2024268N17278  : % 47.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 47.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 48.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 48.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 49Building wind extents for  HELENE_2024_NA_2024268N17278  : % 49.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 49.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 50.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 50.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 51Building wind extents for  HELENE_2024_NA_2024268N17278  : % 51.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 51.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 52.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 52.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 53Building wind extents for  HELENE_2024_NA_2024268N17278  : % 53.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 53.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 54.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 54.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 54.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 55.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 55.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 56.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 56.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 56.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 57.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 57.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 58.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 58.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 58.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 59.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 59.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 60.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 60.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 60.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 61.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 61.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 62.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 62.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 62.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 63.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 63.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 64Building wind extents for  HELENE_2024_NA_2024268N17278  : % 64.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 64.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 65.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 65.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 66Building wind extents for  HELENE_2024_NA_2024268N17278  : % 66.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 66.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 67.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 67.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 68Building wind extents for  HELENE_2024_NA_2024268N17278  : % 68.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 68.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 69.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 69.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 70Building wind extents for  HELENE_2024_NA_2024268N17278  : % 70.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 70.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 71.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 71.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 71.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 72.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 72.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 73.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 73.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 73.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 74.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 74.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 75.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 75.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 75.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 76.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 76.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 77.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 77.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 77.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 78.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 78.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 79.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 79.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 79.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 80.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 80.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 81Building wind extents for  HELENE_2024_NA_2024268N17278  : % 81.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 81.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 82.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 82.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 83Building wind extents for  HELENE_2024_NA_2024268N17278  : % 83.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 83.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 84.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 84.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 85Building wind extents for  HELENE_2024_NA_2024268N17278  : % 85.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 85.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 86.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 86.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 87Building wind extents for  HELENE_2024_NA_2024268N17278  : % 87.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 87.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 88.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 88.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 88.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 89.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 89.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 90.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 90.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 90.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 91.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 91.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 92.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 92.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 92.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 93.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 93.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 94.1Building wind extents for  HELENE_2024_NA_2024268N17278  : % 94.5Building wind extents for  HELENE_2024_NA_2024268N17278  : % 94.9Building wind extents for  HELENE_2024_NA_2024268N17278  : % 95.3Building wind extents for  HELENE_2024_NA_2024268N17278  : % 95.7Building wind extents for  HELENE_2024_NA_2024268N17278  : % 96Building wind extents for  HELENE_2024_NA_2024268N17278  : % 96.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 96.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 97.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 97.6Building wind extents for  HELENE_2024_NA_2024268N17278  : % 98Building wind extents for  HELENE_2024_NA_2024268N17278  : % 98.4Building wind extents for  HELENE_2024_NA_2024268N17278  : % 98.8Building wind extents for  HELENE_2024_NA_2024268N17278  : % 99.2Building wind extents for  HELENE_2024_NA_2024268N17278  : % 99.6Building wind extents for    : % 100
+
+``` r
 ###  then interpolate spatially as a raster
 Helene_winds <- get_wind(Helene_extents,method="Boose",agg=TRUE,s_res=5000)
+```
+
+    ## processing wind for HELENE_2024 via boose
+
+    ## 
+    ## interpolating to desired frequency: % 2interpolating to desired frequency: % 5interpolating to desired frequency: % 7interpolating to desired frequency: % 9interpolating to desired frequency: % 11interpolating to desired frequency: % 14interpolating to desired frequency: % 16interpolating to desired frequency: % 18interpolating to desired frequency: % 20interpolating to desired frequency: % 23interpolating to desired frequency: % 25interpolating to desired frequency: % 27interpolating to desired frequency: % 30interpolating to desired frequency: % 32interpolating to desired frequency: % 34interpolating to desired frequency: % 36interpolating to desired frequency: % 39interpolating to desired frequency: % 41interpolating to desired frequency: % 43interpolating to desired frequency: % 45interpolating to desired frequency: % 48interpolating to desired frequency: % 50interpolating to desired frequency: % 52interpolating to desired frequency: % 55interpolating to desired frequency: % 57interpolating to desired frequency: % 59interpolating to desired frequency: % 61interpolating to desired frequency: % 64interpolating to desired frequency: % 66interpolating to desired frequency: % 68interpolating to desired frequency: % 70interpolating to desired frequency: % 73interpolating to desired frequency: % 75interpolating to desired frequency: % 77interpolating to desired frequency: % 80interpolating to desired frequency: % 82interpolating to desired frequency: % 84interpolating to desired frequency: % 86interpolating to desired frequency: % 89interpolating to desired frequency: % 91interpolating to desired frequency: % 93interpolating to desired frequency: % 95interpolating to desired frequency: % 98
+
+``` r
+##  get some boundaries, mostly for display
+##  county boundaries
+counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
+                        layer = "ne_10m_admin_2_counties")
+usa <- counties|>filter(REGION_COD %in% c(12,13,47,45,37))|>group_by(REGION_COD)|>summarise()
+
+library(terra)
+plot(Helene_winds$boose$max_msw,main="Maximum Sustained Winds (m/s)")
+plot(st_geometry(st_transform(usa,crs(Helene_winds$boose$max_msw))),add=TRUE)
+```
+
+<figure>
+<img src="README_files/figure-gfm/winds-1.png"
+alt="Fig 1. Hurricane Helene’s maximum sustained winds in meters per second." />
+<figcaption aria-hidden="true">Fig 1. Hurricane Helene’s maximum
+sustained winds in meters per second.</figcaption>
+</figure>
+
+We can then categorize the wind into the familiar Saffir-Simpson scale.
+These categories will be our intensity zones and they will be the
+on-the-fly strata that we use to calculate sub-complete evaluation
+estimates.
+
+``` r
 ###  classify the maximum wind speed into the Saffir-Simpson scale
-Helene_Cat <- as.factor(classify(Helene_winds$boose$max_msw,
+Helene_Cat <- as.factor(classify(Helene_winds$max_msw,
                        matrix(c(0,33,0,
                                 33,43,1,
                                 43,50,2,
                                 50,60,3,
                                 60,70,4,
                                 70,Inf,5),ncol=3,byrow=TRUE),include.lowest=TRUE))
-plot(Helene_Cat)
+plot(Helene_Cat,main="Wind Intensity Categories")
 plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
 ```
 
 <figure>
 <img src="README_files/figure-gfm/winds-hidden-1.png"
-alt="Fig 1. Hurricane Helene’s wind field, categorized into intensity zones." />
-<figcaption aria-hidden="true">Fig 1. Hurricane Helene’s wind field,
+alt="Fig 2. Hurricane Helene’s wind field, categorized into intensity zones." />
+<figcaption aria-hidden="true">Fig 2. Hurricane Helene’s wind field,
 categorized into intensity zones.</figcaption>
 </figure>
 
@@ -1036,14 +1055,34 @@ the plots.
 With the hurricane intensity areas defined, we can assign them to each
 plot. We also need to define the area of each wind zone. These will be
 our artificial ‘strata’, and we will need to know the total area in
-order to calculate the expansion factors.
+order to calculate the expansion factors. This is done two ways. The
+first is using vectors (shapefiles) of the strata and the ‘st_area()’
+function to calculate the areas. The second is using the raster image
+and counting the number of pixels in each strata, then multiplying by
+the resolution to get total area.
 
 ``` r
 ###  first, mask out the areas outside of our interest
 ###  for now, this can just be the plots
 ###  but this probably needs to be 'forested' areas
-Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.001)),crs(Helene_Cat))))
-##  now calculate area of each wind zone
+Helene_Cat_plots <- trim(mask(Helene_Cat,st_transform(st_as_sf(st_concave_hull(st_union(plots_geo),ratio=0.01)),crs(Helene_Cat))))
+
+###  for the vector approach, convert to vector
+Helene_Cat_shape <- as.polygons(Helene_Cat)
+## intersect with the states
+Helene_Cat_shape <- st_intersection(st_as_sf(Helene_Cat_shape), counties|>filter(REGION_COD %in% c(12,13))|>group_by(REGION_COD)|>summarise()|>st_transform(crs(Helene_Cat)))
+```
+
+    ## Warning: attribute variables are assumed to be spatially constant throughout
+    ## all geometries
+
+``` r
+##  calculate the area and covert to acres
+Helene_Cat_shape$area.m <- st_area(Helene_Cat_shape)
+Helene_Cat_shape$area.ac <- Helene_Cat_shape$area.m/4046.86
+
+
+##  now the raster approach
 ##  important to do this while the raster is in projected, not geographic, coordinates
 ##  also important to do by state, as this is how the evaluation is done
 Areas12 <- table(values(mask(Helene_Cat_plots,st_transform(counties|>filter(REGION_COD==12),crs(Helene_Cat_plots)))))
@@ -1056,9 +1095,50 @@ Areas$Freq <- Areas$Freq*res(Helene_Cat_plots )[1]*res(Helene_Cat_plots )[2]
 ##  then convert to acres
 Areas$Acres <- Areas$Freq/4046.86
 
+### compare the two
+Areas |> left_join(Helene_Cat_shape|>
+                     mutate(REGION_COD=as.numeric(REGION_COD))|>
+  st_drop_geometry(),
+  by=join_by(Var1==max_msw,STATECD==REGION_COD))|>
+  ###  also compare with FIA shapefile
+  left_join(FIAstates|>
+  filter(STATEFP %in% c(12,13))|>
+  st_transform(st_crs(Helene_Cat_shape))|>
+  st_intersection(st_as_sf(as.polygons(Helene_Cat)))%>%
+  mutate(AreaFIA.m=st_area(.),
+         AreaFIA.ac=AreaFIA.m/4046.86,
+         STATEFP=as.numeric(STATEFP)),by=join_by(Var1==max_msw,STATECD==STATEFP))
+```
+
+    ## Warning: attribute variables are assumed to be spatially constant throughout
+    ## all geometries
+
+    ##   Var1        Freq STATECD       Acres             area.m           area.ac
+    ## 1    0 7.57750e+10      12 18724393.73 112332150206 [m^2] 27757854.29 [m^2]
+    ## 2    1 1.85500e+10      12  4583800.77  18991517326 [m^2]  4692901.98 [m^2]
+    ## 3    2 6.75000e+09      12  1667959.85   6678758883 [m^2]  1650355.80 [m^2]
+    ## 4    3 7.95000e+09      12  1964486.05   7920417193 [m^2]  1957175.98 [m^2]
+    ## 5    4 8.00000e+08      12   197684.13    789709525 [m^2]   195141.30 [m^2]
+    ## 6    0 1.07775e+11      13 26631758.94 109451043293 [m^2] 27045917.90 [m^2]
+    ## 7    1 3.68250e+10      13  9099647.63  36591767302 [m^2]  9042014.62 [m^2]
+    ## 8    2 6.12500e+09      13  1513519.12   5799203623 [m^2]  1433013.16 [m^2]
+    ## 9    3 3.75000e+08      13    92664.44    318858614 [m^2]    78791.61 [m^2]
+    ##                             geom          AreaFIA.m        AreaFIA.ac
+    ## 1 MULTIPOLYGON (((222988.8 -1... 132472745232 [m^2] 32734699.31 [m^2]
+    ## 2 MULTIPOLYGON (((52034.85 51...  20720186432 [m^2]  5120065.05 [m^2]
+    ## 3 MULTIPOLYGON (((112046.8 51...   7539289424 [m^2]  1862997.34 [m^2]
+    ## 4 POLYGON ((156936.4 514838.7...   8635169848 [m^2]  2133795.05 [m^2]
+    ## 5 POLYGON ((151473.9 384951.4...    942857399 [m^2]   232984.93 [m^2]
+    ## 6 POLYGON ((173280 998018.7, ... 110970211278 [m^2] 27421312.15 [m^2]
+    ## 7 POLYGON ((341810.9 526531.4...  36906880423 [m^2]  9119880.70 [m^2]
+    ## 8 POLYGON ((236886.2 510691.6...   5739489088 [m^2]  1418257.39 [m^2]
+    ## 9 POLYGON ((191418.1 512976.5...    293978362 [m^2]    72643.57 [m^2]
+
+``` r
 ###  project onto geographic coordinates
-Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
-plot(Helene_Cat_plots)
+#Helene_Cat_plots <- project(Helene_Cat_plots,"epsg:4326")
+Helene_Cat_shape <- st_transform(Helene_Cat_shape,4326)
+plot(Helene_Cat_shape['max_msw'],key.pos = NULL, reset = FALSE)
 ###  overlay the plots
 plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.01)
 plot(st_geometry(usa),add=TRUE,border="darkgrey")
@@ -1067,8 +1147,8 @@ plot(st_geometry(counties),add=TRUE,border="darkgrey")
 
 <figure>
 <img src="README_files/figure-gfm/extract-1.png"
-alt="Fig 2. Hurricane Helene’s wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." />
-<figcaption aria-hidden="true">Fig 2. Hurricane Helene’s wind zones with
+alt="Fig 3. Hurricane Helene’s wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." />
+<figcaption aria-hidden="true">Fig 3. Hurricane Helene’s wind zones with
 the plots overlayed. Plots are assigned their respective wind zones and
 their expansion factors come from the total area of each wind zone
 divided by the number of plots in each zone.</figcaption>
@@ -1107,7 +1187,10 @@ plots_geo$WindZone <- extract(Helene_Cat_plots,plots_geo)$max_msw
 plots_geo<- plots_geo |>
   left_join(Areas,by=join_by(WindZone==Var1,STATECD))|>
   group_by(WindZone)|>
-  mutate(EXPNS_new = Acres/length(unique(CN)))
+  mutate(nplots = length(unique(CN)),
+         EXPNS_new_raster = Acres/nplots,
+         EXPNS_new_vector = area.ac/nplots,
+         EXPNS_new_FIA = AreaFIA.ac/nplots)
 
 ##  first testing the concept on the full evaluation with the original expansion factors
 ForestedAcres <- plots_geo |>
@@ -1122,12 +1205,6 @@ ForestedAcres |>
   mutate(EVALIDATORacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
                              fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 ```
-
-    ## # A tibble: 2 × 3
-    ##   EVAL_GRP ForestedAcres EVALIDATORacres
-    ##      <int>         <dbl>           <dbl>
-    ## 1   122024     16679484.       16679484.
-    ## 2   132024     24088910.       24088910.
 
 From the above, the DIY ad-hoc estimate matches the total forested acres
 for these two evaluations from EVALIDATOR. To apply it to our custom
@@ -1145,7 +1222,7 @@ requested types.
 HeleneAcres <- plots_geo |>st_drop_geometry()|>
   mutate(ForestedAcres = if_else(PROP_BASIS=="MACR",
                                  CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
-  #filter(EVALID %in% c(122401,132401),EVAL_GRP %in% c(122024,132024),
+  filter(EVALID %in% c(122400,132400),EVAL_GRP %in% c(122024,132024))|>
   #       (FORTYPCD>=140&FORTYPCD<=150)|(FORTYPCD>=160&FORTYPCD<=170)|(FORTYPCD>=400&FORTYPCD<=500)|(FORTYPCD>=970&FORTYPCD<=980))|>  #limit to common forest types
     mutate(FORTYP = if_else(FORTYPCD>=140&FORTYPCD<=150,"longleaf/slash pine",
                           if_else(FORTYPCD>=160&FORTYPCD<=170,"loblolly/shortleaf pine",
@@ -1161,7 +1238,7 @@ HeleneAcres <- rbind(HeleneAcres,
                      HeleneAcres|>mutate(County="All"))|>
   group_by(STATECD,EVAL_GRP,FORTYP,County,WindZone)|>
   summarise(nplots=length(unique(CN)),
-            ForestedAcres=sum(ForestedAcres*EXPNS_new))
+            ForestedAcres=sum(ForestedAcres*AreaFIA.ac))
   
 HeleneAcres|>
   filter(EVAL_GRP%in% c(122024,132024),FORTYP=="All",County=="All")|>
@@ -1170,12 +1247,6 @@ HeleneAcres|>
   mutate(EVALIDATORSacres = as.numeric(c(fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")$totals$ESTIMATE,
                                                                                                                                                                                         fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")$totals$ESTIMATE)))
 ```
-
-    ## # A tibble: 2 × 3
-    ##   EVAL_GRP ForestedAcres EVALIDATORSacres
-    ##      <int>         <dbl>            <dbl>
-    ## 1   122024     15534634.        16679484.
-    ## 2   132024     27123515.        24088910.
 
 These estimates are close to the totals from EVALIDATOR but a little
 off. This is probably because we are using the total area of the strata
