@@ -222,15 +222,16 @@ Helene_Cat <- trim(mask(Helene_Cat,st_transform(FIAstates|>filter(STATEFP %in% c
 #   mutate(nPixels_EU=zonal(Helene_Cat,vect(.),fun="notNA")$max_msw)
 
 
-####  the weighting for the EXPNS calculation can be approximated closesly by the 
-####  plot ratio, instead of the pixel ratio that the offical calculation uses
+####  the weighting for the EXPNS calculation can be approximated closely by the 
+####  plot ratio, instead of the pixel ratio that the official calculation uses
 plots_geo <- plots_geo |>
+  ##  the official ratio for the EXPNS factor
   mutate(PixelRatio=P1POINTCNT/P1PNTCNT_EU)|>
   group_by(ESTN_UNIT_CN)|>
+  ##  an estimated ratio from the plots uses the total number of plots in the estimation unit
   mutate(ESTN_UNIT_nPlots = sum(P2POINTCNT[!duplicated(STRATUM_CN)]))|>
   ungroup()|>
-  #left_join(strata|>st_drop_geometry(),by=join_by(STRATUM_CN))|>
-  #left_join(units|>st_drop_geometry(),by=join_by(ESTN_UNIT_CN))|>
+  ###  need the plot numbers by stratum
   group_by(STRATUM_CN)|>
   mutate(nplots=length(unique(CN)),
          plotratio = nplots/ESTN_UNIT_nPlots, 
@@ -268,41 +269,69 @@ source("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads
 Now, extract the wind zones at each plot, calculate the new expansion factor based on the area of each strata (wind zone) and then compute the forested area for each zone.  
 
 As a proof of concept, we use the original expansion factor (EXPNS) and sum everything within an EVAL_GRP. This should be equivalent to what is computed by EVALIDATOR. To check, we use the API to retrieve the EVALIDATOR estimate and compare it to ours. They are identical, meaning we are calculating correctly for a full evaluation. We then try the same calculation using EXPNS_new to estimate the areas for the custom wind zones. 
-```{r evalidate,eval=TRUE}
-###  first, join the total 'strata' (wind zone) areas to the plot table
-plots_geo$WindZone <- extract(Helene_Cat,plots_geo)$max_msw
+```{r evalidate_custom,eval=TRUE}
 
-###  try first regardless of windzone to test concept
-###  simulating the SQL query from ref_pop_attribute
-plot_summary_cust <- plots_geo |>
-  st_drop_geometry()|>
-  filter(EVAL_GRP %in% c(122024,132024),EVALID %in% c(122401,132401),
+###  first, define our custom function
+###  This will do all of the work
+Custom_Evalidate <- function(plts,grps=NULL,EVALGRPS,EVALIDS){
+###  in case a spatial object was provided
+###  drop it, it is not needed and slows everything down
+plts <- plts |>
+  st_drop_geometry()
+  
+###  first need the plot ratio for the expansion factor
+plts <- plts |>
+  group_by(ESTN_UNIT_CN)|>
+  ##  an estimated ratio from the plots uses the total number of plots in the estimation unit
+  mutate(ESTN_UNIT_nPlots = sum(P2POINTCNT[!duplicated(STRATUM_CN)]))|>
+  ungroup()|>
+  group_by(STRATUM_CN)|>
+  mutate(nplots=length(unique(CN)),
+         plotratio = nplots/ESTN_UNIT_nPlots, 
+         EXPNS2 = plotratio*(AREA_USED/nplots)) 
+
+###  now, simulating the SQL query from ref_pop_attribute
+###  first, the plot level adjustment factors
+plot_summary_cust <- plts |>
+  filter(EVAL_GRP %in% EVALGRPS,EVALID %in% EVALIDS,
          COND_STATUS_CD == 1,!is.null(CONDPROP_UNADJ))|>
   mutate(Y_HID_ADJUSTED = if_else(PROP_BASIS=="MACR",CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
-  group_by(EVAL_GRP,EVALID,ESTN_UNIT_CN, STRATUM_CN, CN)|>
+  ####  here is where our custom strata groups are important
+  ####  we include the any_of qualifier to include any custom groups that were desired
+  group_by(EVAL_GRP,EVALID,ESTN_UNIT_CN, STRATUM_CN, CN,across(any_of(grps)))|>
   summarise(Y_HID_ADJUSTED=sum(Y_HID_ADJUSTED))|>
   ungroup()
+
 phase_summary_cust <- plot_summary_cust |>
-  group_by(EVAL_GRP,STRATUM_CN, ESTN_UNIT_CN, EVALID)|>
+  ###  now sum up to the strata level
+  group_by(EVAL_GRP,STRATUM_CN, ESTN_UNIT_CN, EVALID,across(any_of(grps)))|>
   summarise(YSUM_HD=sum(Y_HID_ADJUSTED),
           YSUM_HD_SQR=sum(Y_HID_ADJUSTED*Y_HID_ADJUSTED),
           plots_in_domain=n(),
           non_zero_plots=sum(!is.null(Y_HID_ADJUSTED)|Y_HID_ADJUSTED>0))
-phase1_summary_cust <- plots_geo |>
+
+###  will need the original official stratum for the appropriate plot counts
+###  here, our custom strata are not included
+phase1_summary_cust <- plts |>
   st_drop_geometry()|>
   distinct(STRATUM_CN,.keep_all=TRUE)|>
   group_by(EVAL_GRP,EVALID,ESTN_UNIT_CN)|>
-  mutate( W_H=P1POINTCNT/sum(P1POINTCNT),
+  mutate(W_H=P1POINTCNT/sum(P1POINTCNT),
           total_area=unique(AREA_USED),
-          N=sum(P2POINTCNT),
+          N=sum(P2POINTCNT), ### this is all N in the estimation unit, not just the Stratum. This is why cant summarise by stratum
           N_H=P2POINTCNT)|>
-  ungroup()
+  ungroup()|>
+  select(EVAL_GRP,EVALID,ESTN_UNIT_CN,STRATUM_CN,W_H,total_area,N,N_H,EXPNS,EXPNS2)
+
+###  now join the plot and custom strata summaries to the official strata numbers
 phase_join_cust <- phase1_summary_cust |>
   left_join(phase_summary_cust,by=join_by(STRATUM_CN,EVAL_GRP,EVALID,ESTN_UNIT_CN))
+
+###  from here, we can estimate the totals, variances and SE values
 estimate <-phase_join_cust |>
   mutate(YSUM_HD=if_else(is.na(YSUM_HD),0,YSUM_HD),
          YSUM_HD_SQR=if_else(is.na(YSUM_HD_SQR),0,YSUM_HD_SQR)) |>
-  group_by(EVAL_GRP,EVALID,ESTN_UNIT_CN,total_area,N) |>
+  group_by(EVAL_GRP,EVALID,ESTN_UNIT_CN,total_area,N,across(any_of(grps))) |>
   summarise(estimate=sum(YSUM_HD*EXPNS),
             estimate_cust=sum(YSUM_HD*EXPNS2),
             total_plots=unique(N),
@@ -320,29 +349,133 @@ estimate <-phase_join_cust |>
                      ((YSUM_HD / N_H) *
                      (YSUM_HD / N_H))) /
                      (N_H - 1))))))|>
-  ungroup()
+  ungroup()|>
+  group_by(EVAL_GRP,across(any_of(grps)))|>
+  summarise(estimate_orig=sum(estimate),
+          estimate_cust=sum(estimate_cust),
+          variance_cust=sum(var_of_estimate),
+          se_cust = sqrt(variance_cust),
+          SEperc_cust = 100*se_cust/estimate_cust)
+estimate
+}
 
-###  our custom estimate versus EVALIDATOR
+####  Now we can try
+####  First, with no grouping, just get the whole evaluation
+CustomEstimate <- Custom_Evalidate(plots,EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+
+###  Get the official EVALIDATOR estimate for the EVAL_GRPs
 EVALID_122024 <- fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&outputFormat=NJSON")
 EVALID_132024 <- fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&outputFormat=NJSON")
 
-estimate |> filter(EVAL_GRP %in% c(122024,132024),EVALID %in% c(122401,132401))|>
-  group_by(EVAL_GRP)|>
-  summarise(estimate_orig=sum(estimate),
-          estimate_cust=sum(estimate_cust),
-          variance_orig=sum(var_of_estimate))|>
-  mutate(EVALIDATORacres = as.numeric(c(EVALID_122024$totals$ESTIMATE,EVALID_132024$totals$ESTIMATE)),
-         EVALIDATORvariance= as.numeric(c(EVALID_122024$totals$VARIANCE,EVALID_132024$totals$VARIANCE)))|>
+###  compare our custom estimate with the EVALIDATOR estimate
+CustomEstimate |>
+  mutate(estimate_EVALIDATOR = as.numeric(c(EVALID_122024$totals$ESTIMATE,EVALID_132024$totals$ESTIMATE)),
+         variance_EVALIDATOR= as.numeric(c(EVALID_122024$totals$VARIANCE,EVALID_132024$totals$VARIANCE)),
+         SEperc_EVALIDATOR= as.numeric(c(EVALID_122024$totals$SE_PERCENT,EVALID_132024$totals$SE_PERCENT)))|>
+  select(EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
   kable(format='html')|>
   kable_styling() |>
   scroll_box(width='100%')
 
-  
 
 ```
 
-This is equivalent to the following calls directly to the DB>
 
+We can see from the above table that our custom values are fairly close to the official numbers. As a reminder, we calculated our values using the variables from database, with the major deviation being that we approximated the expansion factor instead of using the official value. Note, however that the expansion factor is independent of the custom strata. It is based on the official stratum, not the custom stratum. In other words, its not clear why we are calculating our own EXPNS values.
+
+To demonstrate this, we can calculate estimates for custom strata. Here we will do wind zone and county and we can compare to the official values. 
+
+
+```{r evalidate_demo1,eval=TRUE,message=FALSE}
+###  start with COUNTYCD, because this is something that is already returned by EVALIDATOR
+CustomEstimate <- Custom_Evalidate(plots,grps="COUNTYCD",EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+
+###  Get the official EVALIDATOR estimate for the EVAL_GRPs and the counties
+###  notice how county is coded directly into the URL
+EVALID_122024_COUNTYCD <- fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=122024&cselected=County%20code%20and%20name&outputFormat=NJSON")
+EVALID_122024_COUNTYCD  <-  EVALID_122024_COUNTYCD$estimates|>
+                      mutate(COUNTYCD=as.numeric(substr(GRP1,4,6)),
+                             STATECD=12)
+EVALID_132024_COUNTYCD <- fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/fullreport?snum=02&wc=132024&cselected=County%20code%20and%20name&outputFormat=NJSON")
+EVALID_132024_COUNTYCD  <-  EVALID_132024_COUNTYCD$estimates|>
+                      mutate(COUNTYCD=as.numeric(substr(GRP1,4,6)),
+                             STATECD=13)
+EVALID_COUNTYCD <- rbind(EVALID_122024_COUNTYCD,
+                         EVALID_132024_COUNTYCD)|>
+  mutate(ESTIMATE=as.numeric(ESTIMATE),VARIANCE=as.numeric(VARIANCE),SE_PERCENT=as.numeric(SE_PERCENT))|>
+  rename(estimate_EVALIDATOR=ESTIMATE,variance_EVALIDATOR=VARIANCE,SEperc_EVALIDATOR=SE_PERCENT)
+
+CustomEstimate |>
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALID_COUNTYCD,by=join_by(STATECD,COUNTYCD))|>
+  select(STATECD,COUNTYCD,EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable(format='html')|>
+  kable_styling() |>
+  scroll_box(width='100%')
+```
+```{r evalidate_demo1_plot,eval=TRUE,ech=FALSE,message=FALSE}
+test <- CustomEstimate |>
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALID_COUNTYCD,by=join_by(STATECD,COUNTYCD))|>
+  select(STATECD,COUNTYCD,EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)
+plot(test$estimate_EVALIDATOR,test$estimate_cust,ylab="Custom Estimate",xlab="EVALIDATOR estimate",main="Forested Acres")
+abline(a=0,b=1,lty=2)
+```
+
+Again, if we estimate everything by county, our estimates are very similar to those retrieved by EVALIDATOR. 
+
+Wind zones from the hurricane, however, are not in the database. So, its not so easy to compare against EVALIDATOR. However, EVALIDATOR does allow for assigning custom "zones" to individual plots. To do this, we use the "r1" argument as described in the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). We supply a single list of plot control numbers (CN), each one followed by its "zone", like this:
+
+1507891300290487,0,1507891300290487,0,1507891358290487,2,1507891358290487,4,1507890806290487...  etc.
+
+```{r evalidate,eval=TRUE}
+###  first, join the total 'strata' (wind zone) areas to the plot table
+plots_geo$WindZone <- extract(Helene_Cat,plots_geo)$max_msw
+
+##  now get our custom estimate
+##  this time we include both the county and the wind zone
+CustomEstimate <- Custom_Evalidate(plots_geo,grps=c("COUNTYCD","WindZone"),EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+
+###  Now for the EVALIDATOR numbers
+###  here, we cant use a simple API call because we need to send individual plots with their wind zone 
+###  assign the custom zone to each plot, here it is a combination of the county and the wind zone
+CNs122024 <- plots_geo|>distinct(CN,.keep_all=TRUE)|>filter(EVAL_GRP==122024)|>mutate(CNs=paste(CN,paste(WindZone,COUNTYCD,sep="_"),sep=","))|>pull(CNs)
+CNs122024 <- paste0(CNs122024,collapse=",")
+CNs132024 <- plots_geo|>distinct(CN,.keep_all=TRUE)|>filter(EVAL_GRP==132024)|>mutate(CNs=paste(CN,WindZone,sep=","))|>pull(CNs)
+CNs132024 <- paste0(CNs132024,collapse=",")
+
+##  the argument list must have some sort of grouping beside the custom groups, not sure why
+argList122024 = list(snum = 2, rselected="County code and name", wc = 122024, r1=CNs122024, outputFormat = 'NJSON')
+argList132024 = list(snum = 2,rselected="County code and name",wc = 132024,r1=CNs132024,outputFormat = 'NJSON')
+EVALIDATOR_122024 = fiadb_api_POST("https://apps.fs.usda.gov/fiadb-api/fullreport" , argList122024)
+EVALIDATOR_132024 = fiadb_api_POST("https://apps.fs.usda.gov/fiadb-api/fullreport" , argList132024)
+
+###  clean up the results and make them compatible with our table
+EVALIDATOR <- rbind(EVALIDATOR_122024$estimates|>
+                      mutate(WindZone=gsub("Custom ","",sapply(strsplit(GRP1,"_"),"[[",1)),
+                             COUNTYCD=as.numeric(sapply(strsplit(GRP1,"_"),"[[",2)),
+                             STATECD=12),
+                    EVALIDATOR_122024$estimates|>
+                      mutate(WindZone=gsub("Custom ","",sapply(strsplit(GRP1,"_"),"[[",1)),
+                             COUNTYCD=as.numeric(sapply(strsplit(GRP1,"_"),"[[",2)),
+                             STATECD=13))|>
+  rename(estimate_EVALIDATOR=ESTIMATE,variance_EVALIDATOR=VARIANCE,SEperc_EVALIDATOR=SE_PERCENT)
+
+##  join to our values and compare
+CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
+  select(EVAL_GRP,PLOT_COUNT,estimate_cust,estimate_orig,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable(format='html')|>
+  kable_styling() |>
+  scroll_box(width='100%')
+
+```
+
+Again, our values for the plots in each wind zone and in each county is very simliar to that returned by EVALIDATOR.
+
+
+Our custom function is modeled after the following SQL code. 
 ```{r db_est,cache=TRUE,warning=FALSE,message=FALSE,eval=FALSE}
 library(DBI)
 library(sf)
