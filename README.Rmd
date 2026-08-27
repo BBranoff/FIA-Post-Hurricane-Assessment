@@ -12,11 +12,34 @@ library(sf)
 library(dplyr)
 library(knitr)
 library(kableExtra)
+
+
+##  Helene products
+ Helene_winds <- terra::unwrap(readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))$winds$boose)
+##  boundaries
+counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
+                        layer = "ne_10m_admin_2_counties")
+States <- counties|>filter(REGION_COD %in% c("01",12,13,47,45,37))|>group_by(REGION_COD)|>summarise()
 ```
 # FIA-Post-Hurricane-Assessment
-Hurricane damage/loss estimates from collected plots after storms
+The below workflow demonstrates how custom estimates might be produced for incomplete evaluations and/or for custom strata. This is primarily being developed to produce hurricane damage/loss estimates from collected plots after storms. These estimates need to come from specific wind intensity zones and in the case of mortality or biomass/volume loss, should only include plots collected after the storm(s). FIA and or EVALIDATOR dont typically offer this functionality out-of-the-box as everything is designed to around a complete evaluation that includes all plots and all strata.
 
+Here, we demonstrate how to use tables from fiadb and replicate some of the analysis functions with modified variables that more accurately reflect the partial evaluations and/or the custom strata. 
 
+We are using hurricane Helene from 2024 as an example, but the idea is that this workflow could be used for any storm and or other custom disturbance areas. Hurricane Helene made landfall in the Florida big bend area and impacted that area of the state as well as Georgia, South Carolina, North Carolina and Tennessee. For this demonstration, we focus on Florida and Georgia.
+
+* [Load Plots](#Load-Plots-From-FIAdb)
+* [EXPNS Approximation](#EXPNS-Factor-Breakdown)
+* [Custom Evalidate Function](#Custom-Evalidate-Function)
+* [Test 1: Full Evaluation](#Test-1:-Full-Evaluation)
+* [Test 2: Partial Evaluation](#Test-2:-Partial-Evaluation)
+* [Test 3: Custom Strata-Counties](#Test-3:-Custom-Strata-Counties)
+* [Hurricane Helene Wind Zones](#Hurricane-Helene-Wind-Zones)
+* [Test 4: Custom Strata-Wind Zones](#Test-4:-Custom-Strata-Wind-Zones)
+* [Test 5: Custom Strata-County & Wind Zones](#Test-5:-Custom-Strata-County-&-Wind-Zones)
+* [Test 6: Partial Evaluation With Custom Strata-County & Wind Zones](Test-6:-Partial-Evaluation-With-Custom-Strata-County-&-Wind Zones)
+
+# Load Plots From FIAdb
 Start by loading the plots from nims_srs_db.   Here, using the DBI library, which requires some initial setup for successful credentialed connections to the db.
 Once setup, can connect to the "fiadb01p" data base and access any tables you are authorized to access. Then, we can use SQL queries passed as string 
 arguments to retrieve the desired data. Here we are asking for the Florida (132024, 132025) and Georgia (122024, 122025) evaluations since hurricane Helene.
@@ -32,9 +55,9 @@ vars = paste0("select p.cn,p.prev_plt_cn,p.plot_status_cd,p.invyr,p.eval_grp,p.s
               "ps.evalid,ps.estn_unit_cn,ps.adj_factor_macr,ps.adj_factor_subp,ps.expns,ps.P1POINTCNT,ps.P2POINTCNT,",
               "pps.stratum_cn,pc.totplots,pc2.nplots,",
               "PEU.p1pntcnt_eu,PEU.area_used ")
-tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.sds_plot pa,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps,(select evalid,count(cn) as totplots from fs_nims_fiadb_srs.pop_plot_stratum_assgn where evalid in (122401,132401,122400,132400) group by evalid) pc,(select stratum_cn,count(cn) as nplots from fs_nims_fiadb_srs.pop_plot_stratum_assgn where evalid in (122401,132401,122400,132400) group by stratum_cn) pc2,fs_nims_fiadb_srs.POP_ESTN_UNIT PEU "
+tabs = "from fs_nims_fiadb_srs.plotsnap p,fs_nims_fiadb_srs.sds_plot pa,fs_nims_fiadb_srs.cond c,fs_nims_fiadb_srs.pop_stratum ps,fs_nims_fiadb_srs.pop_plot_stratum_assgn pps,(select evalid,count(cn) as totplots from fs_nims_fiadb_srs.pop_plot_stratum_assgn where evalid in (122401,132401) group by evalid) pc,(select stratum_cn,count(cn) as nplots from fs_nims_fiadb_srs.pop_plot_stratum_assgn where evalid in (122401,132401) group by stratum_cn) pc2,fs_nims_fiadb_srs.POP_ESTN_UNIT PEU "
 filts = paste0("where p.eval_grp in (122024,132024) 
-and ps.evalid in (122401,132401,122400,132400)
+and ps.evalid in (122401,132401)
 and c.plt_cn = p.cn
 and pa.plt_cn = p.cn
 and pps.stratum_cn = ps.cn
@@ -54,221 +77,51 @@ plots |> head() |>
   scroll_box(width='100%')
 ```
 
-The above is a small subset, but there are around 8000 plots that have been collected since the storm in Georgia and Florida.
+The above is a small subset, but there are around 8000 plots that have been collected since the storm in Georgia and Florida. To be able to make most estimate calculations from the plot data, the expansion factor (EXPNS) is critical. It essentially portrays how many acres a particular plot represents. This acreage is based on which strata the plot belongs too (ownership class, size class, etc.) as well as the size of the estimation unit and the number of plots in the same strata. Essentially, it takes the expansion factor for the entire estimation unit and then attributes portions of that expansion factor to all strata within. To calculate our own expansion factor, it is key that the estimation unit expansion value stays the same, but the strata values will be different (but still individually represent the estimation unit value). In the database, the expansion factor relies on a pixel ratio for calculation. This is the ratio of pixels in the strata over those in the estimation unit. Unfortunately, the source of these pixels is not available for on-the-fly calculations and also would likely change if the strata boundaries were to change. A major part of the challenge for these calculations is thus finding a way to approximate this ratio.
 
-Now, use the Cyclones package to recreate the winds for Helene and create wind intensity zones. For now, Cyclones is only available on
-Github, so an extra package ("remotes") is required to install it. For this workflow, the hurricane wind information is provided as part of the download and there is no need to recalculate, but the process is demonstrated anyways.
-
-Below demonstrates how the above hurricane data was obtained. First the Cyclones package is downloaded and installed and it is used to ingest the necessary data and process into the wind fields we need.  
-First, download the package and get the storm track information. This is the foundation for being able to retrieve the winds (and rain and storm surge).
-```{r load-winds,eval=TRUE,cache=TRUE,message=FALSE,warning=FALSE}
-##  install, only needed once
-# install.packages('remotes')
-# remotes::install_github("BBranoff/Cyclones@development")
-
-library(Cyclones)
-##  get the storm information
-Helene <- get_storms(name="HELENE",season=2024,erddap=FALSE)
-Helene$HELENE_2024_NA_2024268N17278
-```
-
-Now, calculate the wind field. Here we just use a theoretical (Boose) equation based on the maximum wind speed.
-We calculate the wind onto a grid with a spatial resolution of 5km.
-
-```{r winds,eval=TRUE,cache=TRUE,message=FALSE,warning=FALSE,fig.width=9,fig.height=5,fig.cap = "Fig 1. Hurricane Helene's maximum sustained winds in meters per second."}
-###  first, interpolate the spatial wind information to every 30 mins
-Helene_extents <- make_extents(Helene,t_res=30)
-###  then interpolate spatially as a raster
-Helene_winds <- get_wind(Helene_extents,method="Boose",agg=TRUE,s_res=5000)
-
-##  get some boundaries, mostly for display
-##  county boundaries
-counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
-                        layer = "ne_10m_admin_2_counties")
-usa <- counties|>filter(REGION_COD %in% c(12,13,47,45,37))|>group_by(REGION_COD)|>summarise()
-###  The FIA state boundary is important because it determines the total size of the estimation unit
-###  we use this to calculate the expansion factor
-##   normally this is on the T drive but its copied to Github for easier access
-FIAstates <- read_sf("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/rs_states.gpkg")
-
-library(terra)
-plot(Helene_winds$boose$max_msw,main="Maximum Sustained Winds (m/s)")
-plot(st_geometry(st_transform(usa,crs(Helene_winds$boose$max_msw))),add=TRUE)
-```
-
-We can then categorize the wind into the familiar Saffir-Simpson scale. These categories will be our intensity zones and they will be the on-the-fly strata that we use to calculate sub-complete evaluation estimates. 
-
-```{r load-raster,warning=FALSE,message=FALSE,echo=FALSE}
-##  caching doesnt work on raster objects, because they are held in memory
-Helene_winds <- terra::unwrap(readRDS(gzcon(url("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/Helene.RDS")))$winds$boose)
-###  the EVALIDATOR API functions, also stored on Github for easy access
-source("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/EVALIDATOR%20API.R")
-FIAstates <- read_sf("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/rs_states.gpkg")
-counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
-                        layer = "ne_10m_admin_2_counties")
-usa <- counties|>filter(REGION_COD %in% c(12,13,47,45,37))|>group_by(REGION_COD)|>summarise()
-```
-```{r winds-hidden,eval=TRUE,fig.width=9,fig.height=5,fig.cap = "Fig 2. Hurricane Helene's wind field, categorized into intensity zones." }
-###  classify the maximum wind speed into the Saffir-Simpson scale
-Helene_Cat <- as.factor(classify(Helene_winds$max_msw,
-                       matrix(c(0,33,0,
-                                33,43,1,
-                                43,50,2,
-                                50,60,3,
-                                60,70,4,
-                                70,Inf,5),ncol=3,byrow=TRUE),include.lowest=TRUE))
-plot(Helene_Cat,main="Wind Intensity Categories")
-plot(st_geometry(st_transform(usa,crs(Helene_Cat))),add=TRUE)
-```
-
-The Helene hurricane data is now processed and ready for overlays with the plots. 
-
-With the hurricane intensity areas defined, we can assign them to each plot. We also need to define the area of each wind zone. 
-These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. This is done two ways. The first is using vectors (shapefiles) of the strata and the 'st_area()' function to calculate the areas. The second is using the raster image and counting the number of pixels in each strata, then multiplying by the resolution to get total area. 
+# EXPNS Factor Breakdown
+The below calculations demonstrates how plot numbers do a fair job of this. The ratio of plots in the strata over those in the estimation unit is a fair approximation and allows for close, but not perfect, matches to the expansion factors.
 
 ```{r extract,eval=TRUE,fig.width=9,fig.height=9,fig.cap = "Fig 3. Hurricane Helene's wind zones with the plots overlayed. Plots are assigned their respective wind zones and their expansion factors come from the total area of each wind zone divided by the number of plots in each zone." }
-###  first, mask out the areas outside of our interest
-Helene_Cat <- trim(mask(Helene_Cat,st_transform(FIAstates|>filter(STATEFP %in% c(12,13)),crs(Helene_Cat))))
-#Helene_Cat100 <- project(Helene_Cat,rast(ext=ext(Helene_Cat),crs=crs(Helene_Cat),res=c(100,100)))
-# Helene_Cat_vect <- st_as_sf(as.polygons(Helene_Cat))|>st_intersection(FIAstates|>filter(STATEFP %in% c(12,13))|>st_transform(crs(Helene_Cat)))%>%
-#   mutate(VectArea.m = st_area(.),
-#          VectArea.ac=VectArea.m/4046.86)|>
-#   group_by(STATEFP)|>
-#   mutate(statearea.ac=sum(VectArea.ac))
 
-##  the raster area approach to pixel counting
-##  important to do this while the raster is in projected, not geographic, coordinates
-##  also important to do by state, as this is how the evaluation is done
-# Areas12 <- table(values(mask(Helene_Cat,st_transform(FIAstates|>filter(STATEFP==12),crs(Helene_Cat)))))
-# Areas13 <- table(values(mask(Helene_Cat,st_transform(FIAstates|>filter(STATEFP==13),crs(Helene_Cat)))))
-# Areas <- rbind(data.frame(Areas12)|>mutate(STATECD=12),
-#                data.frame(Areas13)|>mutate(STATECD=13)) |>
-#   rename(npixels=Freq)|>
-#   mutate(area.raster.m = npixels*res(Helene_Cat)[1]*res(Helene_Cat)[2],
-#          area.raster.ac = area.raster.m/4046.86)|>
-#   group_by(STATECD)|>
-#   mutate(state_tot_pixels=sum(npixels),
-#          state_tot_pixels_area = sum(area.raster.ac))|>
-#   left_join(Helene_Cat_vect|>
-#               st_drop_geometry()|>
-#               mutate(STATECD=as.numeric(STATEFP)),by=join_by(STATECD,Var1==max_msw))|>
-#   st_drop_geometry()|>ungroup()|>
-#   ##  compare to FIA state total areas from the ESTN_UNITs
-#   left_join(plots |> 
-#               group_by(EVALID,EVAL_GRP)|>
-#               mutate(totFIAplots=length(unique(CN)))|>
-#               distinct(ESTN_UNIT_CN,.keep_all=TRUE)|>
-#               group_by(EVAL_GRP,EVALID,totFIAplots)|>summarise(totFIAarea=sum(AREA_USED))|>
-#               filter((EVAL_GRP ==122024&EVALID==122401)|(EVAL_GRP==122025&EVALID==122501)|(EVAL_GRP==132025&EVALID==132501)|(EVAL_GRP==132024&EVALID==132401))|>
-#               mutate(STATECD=as.numeric(substr(EVALID,1,2)))|>ungroup()|>distinct(STATECD,totFIAarea,totFIAplots),
-#             by=join_by(STATECD))
-# 
-# Areas
-
-# ###  check with the units on file
-# FIAunits<- read_sf("//usda.net/fs/FS/RD/SRS/Science/FIA/Collaboration/SRS_GIS_Layers/SRS/srs_unit.shp") |>
-#   filter(WU >100 & WU<140)|>
-#   mutate(STATECD = substr(WU,1,2))
-# ###  need the national forests as well
-# forests <- read_sf("C:/Users/BenjaminBranoff/Downloads/BdyAdm_LSRS_AdministrativeForest/S_USA.BdyAdm_LSRS_AdministrativeForest.shp")|> 
-#   filter(FORESTNAME %in% c("Chattahoochee-Oconee National Forests","National Forests in Florida"))
-# ###  combine for all ESTIMATION UNITS in analysis
-# FLGAunits <- rbind(st_difference(FIAunits |> rename(Unit=WU)|>select(Unit,STATECD),
-#                    st_union(forests|> rename(Unit=FORESTNAME)|>select(Unit,STATECD))),
-#                    forests|> rename(Unit=FORESTNAME)|>select(Unit,STATECD))|>
-#   ## calculate area
-#   st_transform(crs(Helene_Cat)) |>
-#   st_as_sf() %>%
-#   mutate(EU_Area.ac = as.numeric(st_area(.))/4046.86,
-#          EU_nPixels=zonal(Helene_Cat,vect(.),fun="notNA")$max_msw)
-# 
-# dist_threshold <- 10000 # e.g., 1000 meters
-# strataPixels <- lapply(unique(plots_geo$STRATUM_CN),function(x){
-#  r= plots_geo |> filter(STRATUM_CN==x) |>
-#     st_transform(crs(Helene_Cat))%>%
-#     rasterize(field='STRATUM_CN',Helene_Cat500)
-#   sum(!is.na(values(r)))
-# })
-# EU_pixels <- sum(!is.na(values(plots_geo |>
-#     st_transform(crs(Helene_Cat))%>%
-#     rasterize(field='STRATUM_CN',Helene_Cat500))))
-# strata <-plots_geo |> 
-#  distinct(STRATUM_CN)|>
-#   mutate(nPixels=unlist(strataPixels))
-# 
-# strata <- plots_geo |> group_by(STRATUM_CN)|>
-#   summarise(do_union=TRUE) %>%
-#   st_concave_hull(.,ratio=0.01)|>
-#   st_as_sf() %>%
-#   st_transform(crs(Helene_Cat))%>%
-#   mutate(area.ac=as.numeric(st_area(.))/4046.86)%>%
-#   mutate(nPixels=zonal(Helene_Cat,vect(.),fun="notNA")$max_msw)
-# unitPixels <- lapply(unique(plots_geo$ESTN_UNIT_CN),function(x){
-#  r= plots_geo |> filter(ESTN_UNIT_CN==x) |>
-#     st_transform(crs(Helene_Cat))%>%
-#     rasterize(field='ESTN_UNIT_CN',Helene_Cat500)
-#   sum(!is.na(values(r)))
-# })
-# units<-plots_geo |> 
-#  distinct(ESTN_UNIT_CN)|>
-#   mutate(nPixels_EU=unlist(unitPixels))
-# 
-# units <- plots_geo |> group_by(ESTN_UNIT_CN)|>
-#   summarise(do_union=TRUE) %>%
-#   st_concave_hull(.,ratio=0.5)|>
-#   st_as_sf() %>%
-#   st_transform(crs(Helene_Cat))%>%
-#   mutate(area_EU.ac=as.numeric(st_area(.))/4046.86)%>%
-#   mutate(nPixels_EU=zonal(Helene_Cat,vect(.),fun="notNA")$max_msw)
-
-
-####  the weighting for the EXPNS calculation can be approximated closely by the 
-####  plot ratio, instead of the pixel ratio that the official calculation uses
-plots_geo <- plots_geo |>
+plots_cust <- plots |>
   ##  the official ratio for the EXPNS factor
+  ##  P1POINTCNT is the number of pixels in the stratum
+  ##  P1PNTCNT_EU is the number of pixels in the estimation unit
   mutate(PixelRatio=P1POINTCNT/P1PNTCNT_EU)|>
   group_by(ESTN_UNIT_CN)|>
   ##  an estimated ratio from the plots uses the total number of plots in the estimation unit
-  mutate(ESTN_UNIT_nPlots = sum(P2POINTCNT[!duplicated(STRATUM_CN)]))|>
+  ##  here, we take the database given value of P2POINTCNT
+  ##  but we also calculate it ourselves as the number of unique CNs in the estimation unit
+  ##  it's important to show that these two values are the same, so we can use our own custom calculation when necessary
+  mutate(nplots_EU = sum(P2POINTCNT[!duplicated(STRATUM_CN)]),
+         nplots_EU2 = length(unique(CN)))|>
   ungroup()|>
   ###  need the plot numbers by stratum
   group_by(STRATUM_CN)|>
   mutate(nplots=length(unique(CN)),
-         plotratio = nplots/ESTN_UNIT_nPlots, 
+         plotratio = nplots/nplots_EU2, 
          EXPNS2 = plotratio*(AREA_USED/nplots))
 
-plot(plots_geo$PixelRatio,plots_geo$plotratio)
+par(mfrow=c(3,1),mar=c(5,5,0,0))
+plot(plots_cust$nplots_EU,plots_cust$nplots_EU2,xlab="FIAdb n plots",ylab="custom n plots")
+abline(a=0,b=1,lty=2)
+plot(plots_cust$PixelRatio,plots_cust$plotratio,xlab="Pixel Ratio",ylab="Plot Ratio")
 abline(a=0,b=1,lty=2)
 ###  this is the key to approximating the EXPNS
-plot(plots_geo$EXPNS,plots_geo$EXPNS2)
+plot(plots_cust$EXPNS,plots_cust$EXPNS2,xlab="FIAdb EXPNS",ylab="custom EXPNS")
 abline(a=0,b=1,lty=2)
-
-###  project onto geographic coordinates
-Helene_Cat <- project(Helene_Cat,"epsg:4326")
-plot(Helene_Cat)
-###  overlay the plots
-plot(st_geometry(st_as_sf(plots_geo,coords=c("LON","LAT"),crs=4326)),add=TRUE,pch=19,cex=0.01,col="darkgrey")
-plot(st_geometry(usa),add=TRUE,border="darkgrey")
-plot(st_geometry(counties),add=TRUE,border="darkgrey")
 ```
 
-We now have the plots and the areas associated with each wind zone. From here, we can begin to assemble the
-necessary tables and calculate the desired estimates. 
+The above demonstrates that we can approximate the expansion factor from the number of plots in the strata. When estimating from a full evaluation, this is pretty straightforward because the number of plots in the strata doesn't change. But when estimating partial evaluations, for example from only one evaluation year or for plots that were only measured after a certain event, the calculation is more complicated. 
 
-Beginning with assembling the necessary tables. Forested area is likely the most straight forward. We will get the 
-forested acreage of each plot and, using a custom expansion factor, estimate the total forested acreage in each wind zone.
+When working with less than a full evaluation, the expansion factors for should increase to make up for the lack of plots. However, we dont have anything to compare them against because the database does not include any basis for comparison for partial evaluations. Therefore, we will try to estimate forested acreage based on a partial evaluation and compare it to the full evaluation. This assumes that forested acreage does not change much from one year to the next. We should expect the estimate for forested acres to be close but probably not the same, and the variance and sampling error estimates should increase for a partial evaluation. 
 
-First, we need some helper functions to compare our estimates with 'official' numbers from FIA. We use the FIA EVALIDATOR API to do this. These functions are provided here by following the below steps, but they are taken directly from the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). 
-```{r evalidator_f,eval=FALSE,echo=FALSE}
-##  to load the functions necessary for the EVALIDATOR API
-##  source them directly from the Github repository for this package
-##  They can also be copied from: https://apps.fs.usda.gov/fiadb-api/
-source("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/EVALIDATOR%20API.R")
-```
+# Custom Evalidate Function
+As a proof of concept, we use the original expansion factor (EXPNS) and sum everything within an EVAL_GRP. This should be equivalent to what is computed by EVALIDATOR. To check, we use the API to retrieve the EVALIDATOR estimate and compare it to ours. We also do the same calculation for a full evaluation but using our custom EXPNS value. Finally, we do it for a partial evaluation using the custom EXPNS and compare it to the full evaluations. Again, if we have done it right, the estimate for forested acres from a partial evaluation should be close to that from a full evaluation.
 
-Now, extract the wind zones at each plot, calculate the new expansion factor based on the area of each strata (wind zone) and then compute the forested area for each zone.  
+To avoid repeating the same code every time, the below section demonstrates how these calculations are done and it saves the method as a custom function called 'Custom_Evalidate', which we can call anytime we want to do it. This function is interpreted from the SQL_QUERY value of the REF_POP_ATTRIBUTE table. By doing it this way, we are getting as close as possible to the method employed by FIA. 
 
-As a proof of concept, we use the original expansion factor (EXPNS) and sum everything within an EVAL_GRP. This should be equivalent to what is computed by EVALIDATOR. To check, we use the API to retrieve the EVALIDATOR estimate and compare it to ours. They are identical, meaning we are calculating correctly for a full evaluation. We then try the same calculation using EXPNS_new to estimate the areas for the custom wind zones. 
 ```{r evalidate_custom,eval=TRUE}
 
 ###  first, define our custom function
@@ -276,25 +129,28 @@ As a proof of concept, we use the original expansion factor (EXPNS) and sum ever
 Custom_Evalidate <- function(plts,grps=NULL,EVALGRPS,EVALIDS){
 ###  in case a spatial object was provided
 ###  drop it, it is not needed and slows everything down
+###  filter out the unwanted evaluations
 plts <- plts |>
-  st_drop_geometry()
-  
+  st_drop_geometry()|>
+  filter(EVAL_GRP %in% EVALGRPS,EVALID %in% EVALIDS)
+
 ###  first need the plot ratio for the expansion factor
 plts <- plts |>
+  mutate(PixelRatio=P1POINTCNT/P1PNTCNT_EU)|>
   group_by(ESTN_UNIT_CN)|>
   ##  an estimated ratio from the plots uses the total number of plots in the estimation unit
-  mutate(ESTN_UNIT_nPlots = sum(P2POINTCNT[!duplicated(STRATUM_CN)]))|>
+  mutate(nplots_EU = sum(P2POINTCNT[!duplicated(STRATUM_CN)]),
+         nplots_EU2 = length(unique(CN)))|>
   ungroup()|>
   group_by(STRATUM_CN)|>
   mutate(nplots=length(unique(CN)),
-         plotratio = nplots/ESTN_UNIT_nPlots, 
-         EXPNS2 = plotratio*(AREA_USED/nplots)) 
+         plotratio = nplots/nplots_EU2, 
+         EXPNS2 = PixelRatio*(AREA_USED/nplots)) 
 
 ###  now, simulating the SQL query from ref_pop_attribute
 ###  first, the plot level adjustment factors
 plot_summary_cust <- plts |>
-  filter(EVAL_GRP %in% EVALGRPS,EVALID %in% EVALIDS,
-         COND_STATUS_CD == 1,!is.null(CONDPROP_UNADJ))|>
+  filter(COND_STATUS_CD == 1,!is.null(CONDPROP_UNADJ))|>
   mutate(Y_HID_ADJUSTED = if_else(PROP_BASIS=="MACR",CONDPROP_UNADJ*ADJ_FACTOR_MACR,CONDPROP_UNADJ*ADJ_FACTOR_SUBP))|>
   ####  here is where our custom strata groups are important
   ####  we include the any_of qualifier to include any custom groups that were desired
@@ -318,8 +174,12 @@ phase1_summary_cust <- plts |>
   group_by(EVAL_GRP,EVALID,ESTN_UNIT_CN)|>
   mutate(W_H=P1POINTCNT/sum(P1POINTCNT),
           total_area=unique(AREA_USED),
-          N=sum(P2POINTCNT), ### this is all N in the estimation unit, not just the Stratum. This is why cant summarise by stratum
-          N_H=P2POINTCNT)|>
+         ### here its important not to use the hard-coded variables, as these will change with the partial evaluation
+         ### P2POINTCNT is the number of plots in a complete strata, but we have impartial strata, so use 'nplots' instead  
+          #N=sum(P2POINTCNT), ### this is all N in the estimation unit, not just the Stratum. This is why cant summarise by stratum
+          N=sum(nplots),
+          #N_H=P2POINTCNT,
+          N_H=nplots)|>
   ungroup()|>
   select(EVAL_GRP,EVALID,ESTN_UNIT_CN,STRATUM_CN,W_H,total_area,N,N_H,EXPNS,EXPNS2)
 
@@ -356,8 +216,20 @@ estimate <-phase_join_cust |>
           variance_cust=sum(var_of_estimate),
           se_cust = sqrt(variance_cust),
           SEperc_cust = 100*se_cust/estimate_cust)
-estimate
+estimate |>ungroup()
 }
+```
+
+# Test 1: Full Evaluation
+Now that we have the methods saved as a custom function, we can use it to compare against EVALIDATOR.  Below, we calculate the full Florida and Georgia evaluations from 2024. These evaluations include plots that were measured roughly anytime in the previous five years (2017-2025). For reference, Hurricane Helene hit these states in 2024, so querying plots after it hit will be a partial evaluation. First though, a full evaluation to test the custom calculation. 
+
+To compare our estimates with 'official' numbers from FIA, we use the FIA EVALIDATOR API. These functions (fiadb_api_GET) are are taken directly from the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). 
+
+```{r evalidator_full,eval=TRUE,message=FALSE}
+##  to load the functions necessary for the EVALIDATOR API
+##  source them directly from the Github repository for this package
+##  They can also be copied from: https://apps.fs.usda.gov/fiadb-api/
+source("https://github.com/BBranoff/FIA-Post-Hurricane-Assessment/raw/refs/heads/main/data/EVALIDATOR%20API.R")
 
 ####  Now we can try
 ####  First, with no grouping, just get the whole evaluation
@@ -375,18 +247,47 @@ CustomEstimate |>
   select(EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
   kable(format='html')|>
   kable_styling() |>
-  scroll_box(width='100%')
-
+  scroll_box(width='100%',height='100%')
 
 ```
 
+We can see from the above table that our custom values are fairly close to the official numbers. Here, '_orig" values are those calculated using the original EXPNS factor, '_custom' values are those calculated using the custom EXPNS value, and '_EVALIDATOR' values are retrieved directly from the API.
 
-We can see from the above table that our custom values are fairly close to the official numbers. As a reminder, we calculated our values using the variables from database, with the major deviation being that we approximated the expansion factor instead of using the official value. Note, however that the expansion factor is independent of the custom strata. It is based on the official stratum, not the custom stratum. In other words, its not clear why we are calculating our own EXPNS values.
+Any deviations in the above table are a direct result of substituting the plot ratio for the pixel ratio in the expansion factor calculation. 
 
-To demonstrate this, we can calculate estimates for custom strata. Here we will do wind zone and county and we can compare to the official values. 
+# Test 2: Partial Evaluation
+Now, we can try a partial evaluation. Here, we start by only including plots that were measured one year before Helene. We do this by inventory year (INVYR) because each INVYR should have a nice even representation across the strata. Previous attempts to do this by exact dates did not work well because the strata were unevenly represented.
 
+There is no reason to think acreage would change substantially before or after Helene, but we want to demonstrate whether calculations from a partial evaluation can get close to those from a full EVALIDATOR evaluation.
 
-```{r evalidate_demo1,eval=TRUE,message=FALSE}
+```{r evalidate_partial,eval=TRUE,message=FALSE}
+
+####  First, remove plots from before the hurricane
+plots_partial <- plots |> mutate(measdate = as.Date(paste(MEASYEAR,MEASMON,MEASDAY,sep="-")))|>
+  filter(INVYR==2024)
+  #filter(measdate>=as.Date("2024-09-26"))
+###  calculate based on the reduced evaluation
+CustomEstimate <- Custom_Evalidate(plots_partial,EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+
+###  compare our custom estimate with the EVALIDATOR estimate
+CustomEstimate |>
+  mutate(estimate_EVALIDATOR = as.numeric(c(EVALID_122024$totals$ESTIMATE,EVALID_132024$totals$ESTIMATE)),
+         variance_EVALIDATOR= as.numeric(c(EVALID_122024$totals$VARIANCE,EVALID_132024$totals$VARIANCE)),
+         SEperc_EVALIDATOR= as.numeric(c(EVALID_122024$totals$SE_PERCENT,EVALID_132024$totals$SE_PERCENT)))|>
+  select(EVAL_GRP,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable(format='html')|>
+  kable_styling() |>
+  scroll_box(width='100%')
+```
+
+Again, our estimate is close. So, we have now demonstrated that we can use the Custom_Evalidate function to provide a close estimate of a full or even partial evaluation by using the plot ratio instead of the pixel ratio for the expansion factor. 
+
+# Test 3: Custom Strata-Counties
+We can now attempt to do this for partial or custom strata. This will be useful for providing estimates in areas that are otherwise not demarcated within fiadb, such as hurricane wind intensity zones, burned areas, or other disturbance zones.
+
+To start, we use a commonly requested grouping that is already in the database: Counties. Primarily as a check to make sure the 'Custom_Evalidate()' function will work with a specific grouping and whether it will match EVALIDATOR. 
+
+```{r evalidate_demo_counties,eval=TRUE,message=FALSE}
 ###  start with COUNTYCD, because this is something that is already returned by EVALIDATOR
 CustomEstimate <- Custom_Evalidate(plots,grps="COUNTYCD",EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
 
@@ -400,19 +301,22 @@ EVALID_132024_COUNTYCD <- fiadb_api_GET(url="https://apps.fs.usda.gov/fiadb-api/
 EVALID_132024_COUNTYCD  <-  EVALID_132024_COUNTYCD$estimates|>
                       mutate(COUNTYCD=as.numeric(substr(GRP1,4,6)),
                              STATECD=13)
+###  Join the two evaluations together
 EVALID_COUNTYCD <- rbind(EVALID_122024_COUNTYCD,
                          EVALID_132024_COUNTYCD)|>
   mutate(ESTIMATE=as.numeric(ESTIMATE),VARIANCE=as.numeric(VARIANCE),SE_PERCENT=as.numeric(SE_PERCENT))|>
   rename(estimate_EVALIDATOR=ESTIMATE,variance_EVALIDATOR=VARIANCE,SEperc_EVALIDATOR=SE_PERCENT)
 
+###  compare to our estimates
 CustomEstimate |>
   mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
   left_join(EVALID_COUNTYCD,by=join_by(STATECD,COUNTYCD))|>
   select(STATECD,COUNTYCD,EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
   kable(format='html')|>
   kable_styling() |>
-  scroll_box(width='100%')
+  scroll_box(width='100%',height='400px')
 ```
+
 ```{r evalidate_demo1_plot,eval=TRUE,ech=FALSE,message=FALSE}
 test <- CustomEstimate |>
   mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
@@ -422,26 +326,98 @@ plot(test$estimate_EVALIDATOR,test$estimate_cust,ylab="Custom Estimate",xlab="EV
 abline(a=0,b=1,lty=2)
 ```
 
-Again, if we estimate everything by county, our estimates are very similar to those retrieved by EVALIDATOR. 
+In the above table and the plot, we see that county by county, our evaluation is close to that returned by EVALIDATOR, but there are some counties whose values deviate significantly. Its not clear at this time why this deviation is so large, but future work may focus on these counties. 
 
-Wind zones from the hurricane, however, are not in the database. So, its not so easy to compare against EVALIDATOR. However, EVALIDATOR does allow for assigning custom "zones" to individual plots. To do this, we use the "r1" argument as described in the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). We supply a single list of plot control numbers (CN), each one followed by its "zone", like this:
+# Hurricane Helene Wind Zones
+We can now try to use a completely custom strata, such as hurricane wind intensity zones. To do this, we use the Cyclones package to recreate the winds for Helene and create wind intensity zones. For now, Cyclones is only available on Github, so an extra package ("remotes") is required to install it. For this workflow, the hurricane wind information is provided as part of the download and there is no need to recalculate, but the process is demonstrated anyways.
+
+Below demonstrates how the above hurricane data was obtained. First the Cyclones package is downloaded and installed and it is used to ingest the necessary data and process into the wind fields we need.  
+
+Now, calculate the wind field. Here we just use a theoretical (Boose) equation based on the maximum wind speed.
+We calculate the wind onto a grid with a spatial resolution of 5km.
+
+```{r load_winds,eval=FALSE,message=FALSE,warning=FALSE}
+##  install, only needed once
+# install.packages('remotes')
+# remotes::install_github("BBranoff/Cyclones@development")
+
+library(Cyclones)
+##  get the storm information
+Helene <- get_storms(name="HELENE",season=2024,erddap=FALSE)
+Helene$HELENE_2024_NA_2024268N17278
+###  first, interpolate the spatial wind information to every 30 mins
+Helene_extents <- make_extents(Helene,t_res=30)
+###  then interpolate spatially as a raster
+Helene_winds <- get_wind(Helene_extents,method="Boose",agg=TRUE,s_res=5000)
+
+##  get some boundaries, mostly for display
+##  county boundaries
+counties <- read_sf("/vsizip//vsicurl/https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_2_counties.zip",
+                        layer = "ne_10m_admin_2_counties")
+States <- counties|>filter(REGION_COD %in% c(12,13,47,45,37))|>group_by(REGION_COD)|>summarise()
+```
+```{r winds,eval=TRUE,message=FALSE,warning=FALSE,fig.width=9,fig.height=8,fig.cap = "Fig 1. Hurricane Helene's maximum sustained winds in meters per second.",cache.extra=2}
+library(terra)
+plot(Helene_winds$max_msw,main="Maximum Sustained Winds (m/s)")
+plot(st_geometry(st_transform(States,crs(Helene_winds$max_msw))),add=TRUE)
+```
+
+We can then categorize the wind into the familiar Saffir-Simpson scale. These categories will be our intensity zones and they will be the on-the-fly strata that we use to calculate partial evaluation estimates. 
+
+```{r winds2,message=FALSE,eval=TRUE,fig.width=9,fig.height=8,fig.cap = "Fig 2. Hurricane Helene's wind field, categorized into intensity zones." }
+###  classify the maximum wind speed into the Saffir-Simpson scale
+Helene_Cat <- as.factor(classify(Helene_winds$max_msw,
+                       matrix(c(0,33,0,
+                                33,43,1,
+                                43,50,2,
+                                50,60,3,
+                                60,70,4,
+                                70,Inf,5),ncol=3,byrow=TRUE),include.lowest=TRUE))
+###  first, mask out the areas outside of our interest
+Helene_Cat <- trim(mask(Helene_Cat,st_transform(st_concave_hull(plots_geo|>st_union()|>st_as_sf(),ratio=.1),crs(Helene_Cat))))
+###  project onto geographic coordinates
+Helene_Cat <- project(Helene_Cat,"epsg:4326")
+par(mfrow=c(1,1),mar=c(5.1, 4.1, 4.1, 2.1))
+plot(Helene_Cat,main="Hurricane Helene Intensity Categories")
+###  overlay the plots
+plot(st_geometry(plots_geo|>distinct(geometry)),add=TRUE,pch=19,cex=0.01,col="darkgrey")
+plot(st_geometry(counties),add=TRUE,border="lightgrey")
+
+```
+
+The Helene hurricane data is now processed and ready for overlays with the plots. 
+
+With the hurricane intensity areas defined, we can assign them to each plot. We also need to define the area of each wind zone. 
+These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. This is done two ways. The first is using vectors (shapefiles) of the strata and the 'st_area()' function to calculate the areas. The second is using the raster image and counting the number of pixels in each strata, then multiplying by the resolution to get total area. 
+
+# Test 4: Custom Strata-Wind Zones
+
+We now have the plots and the areas associated with each wind zone. From here, we can begin to assemble the
+necessary tables and calculate the desired estimates. 
+
+Beginning with assembling the necessary tables. Forested area is likely the most straight forward. We will get the 
+forested acreage of each plot and, using a custom expansion factor, estimate the total forested acreage in each wind zone.
+
+Now, extract the wind zones at each plot and use those zones as one of the grouping variables to compute the forested area for each zone.  
+
+However, because wind zones from the hurricane are not in fiadb, its not so easy to compare against EVALIDATOR. But EVALIDATOR does allow for assigning custom "zones" to individual plots. To do this, we use the "r1" argument as described in the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). We supply a single list of plot control numbers (CN), each one followed by its "zone", like this:
 
 1507891300290487,0,1507891300290487,0,1507891358290487,2,1507891358290487,4,1507890806290487...  etc.
 
-```{r evalidate,eval=TRUE}
+```{r evalidate_wind,eval=TRUE,message=FALSE}
 ###  first, join the total 'strata' (wind zone) areas to the plot table
 plots_geo$WindZone <- extract(Helene_Cat,plots_geo)$max_msw
 
 ##  now get our custom estimate
 ##  this time we include both the county and the wind zone
-CustomEstimate <- Custom_Evalidate(plots_geo,grps=c("COUNTYCD","WindZone"),EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+CustomEstimate <- Custom_Evalidate(plots_geo,grps=c("WindZone"),EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
 
 ###  Now for the EVALIDATOR numbers
 ###  here, we cant use a simple API call because we need to send individual plots with their wind zone 
 ###  assign the custom zone to each plot, here it is a combination of the county and the wind zone
-CNs122024 <- plots_geo|>distinct(CN,.keep_all=TRUE)|>filter(EVAL_GRP==122024)|>mutate(CNs=paste(CN,paste(WindZone,COUNTYCD,sep="_"),sep=","))|>pull(CNs)
+CNs122024 <- plots_geo|>filter(EVAL_GRP==122024)|>distinct(CN,.keep_all=TRUE)|>mutate(CNs=paste(CN,WindZone,sep=","))|>pull(CNs)
 CNs122024 <- paste0(CNs122024,collapse=",")
-CNs132024 <- plots_geo|>distinct(CN,.keep_all=TRUE)|>filter(EVAL_GRP==132024)|>mutate(CNs=paste(CN,WindZone,sep=","))|>pull(CNs)
+CNs132024 <- plots_geo|>filter(EVAL_GRP==132024)|>distinct(CN,.keep_all=TRUE)|>mutate(CNs=paste(CN,WindZone,sep=","))|>pull(CNs)
 CNs132024 <- paste0(CNs132024,collapse=",")
 
 ##  the argument list must have some sort of grouping beside the custom groups, not sure why
@@ -453,9 +429,52 @@ EVALIDATOR_132024 = fiadb_api_POST("https://apps.fs.usda.gov/fiadb-api/fullrepor
 ###  clean up the results and make them compatible with our table
 EVALIDATOR <- rbind(EVALIDATOR_122024$estimates|>
                       mutate(WindZone=gsub("Custom ","",sapply(strsplit(GRP1,"_"),"[[",1)),
+                             STATECD=12),
+                    EVALIDATOR_132024$estimates|>
+                      mutate(WindZone=gsub("Custom ","",sapply(strsplit(GRP1,"_"),"[[",1)),
+                             STATECD=13))|>
+  rename(estimate_EVALIDATOR=ESTIMATE,variance_EVALIDATOR=VARIANCE,SEperc_EVALIDATOR=SE_PERCENT)
+
+##  join to our values and compare
+CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,WindZone))|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  select(EVAL_GRP,WindZone,PLOT_COUNT,estimate_cust,estimate_EVALIDATOR,estimate_percentdiff,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable(format='html')|>
+  kable_styling() |>
+  scroll_box(width='100%',height='400px')
+
+```
+
+Again, our values for the plots in each wind zone and in each county is very similar to that returned by EVALIDATOR. We can also include county in the grouping, but here we have to be a little tricky in how we construct the "zones" for the EVALIDATOR API call. To do this, we combine wind zone and county into one grup title, separated by a "_".
+
+# Test 5: Custom Strata-County & Wind Zones
+
+```{r evalidate_county_wind,eval=TRUE,message=FALSE}
+##  now get our custom estimate
+##  this time we include both the county and the wind zone
+CustomEstimate <- Custom_Evalidate(plots_geo,grps=c("WindZone","COUNTYCD"),EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+
+###  Now for the EVALIDATOR numbers
+###  here, we cant use a simple API call because we need to send individual plots with their wind zone 
+###  assign the custom zone to each plot, here it is a combination of the county and the wind zone
+CNs122024 <- plots_geo|>filter(EVAL_GRP==122024)|>distinct(CN,.keep_all=TRUE)|>mutate(CNs=paste(CN,paste(WindZone,COUNTYCD,sep="_"),sep=","))|>pull(CNs)
+CNs122024 <- paste0(CNs122024,collapse=",")
+CNs132024 <- plots_geo|>filter(EVAL_GRP==132024)|>distinct(CN,.keep_all=TRUE)|>mutate(CNs=paste(CN,paste(WindZone,COUNTYCD,sep="_"),sep=","))|>pull(CNs)
+CNs132024 <- paste0(CNs132024,collapse=",")
+argList122024 = list(snum = 2, rselected="County code and name", wc = 122024, r1=CNs122024, outputFormat = 'NJSON')
+argList132024 = list(snum = 2,rselected="County code and name",wc = 132024,r1=CNs132024,outputFormat = 'NJSON')
+EVALIDATOR_122024 = fiadb_api_POST("https://apps.fs.usda.gov/fiadb-api/fullreport" , argList122024)
+EVALIDATOR_132024 = fiadb_api_POST("https://apps.fs.usda.gov/fiadb-api/fullreport" , argList132024)
+
+
+###  clean up the results and make them compatible with our table
+EVALIDATOR <- rbind(EVALIDATOR_122024$estimates|>
+                      mutate(WindZone=gsub("Custom ","",sapply(strsplit(GRP1,"_"),"[[",1)),
                              COUNTYCD=as.numeric(sapply(strsplit(GRP1,"_"),"[[",2)),
                              STATECD=12),
-                    EVALIDATOR_122024$estimates|>
+                    EVALIDATOR_132024$estimates|>
                       mutate(WindZone=gsub("Custom ","",sapply(strsplit(GRP1,"_"),"[[",1)),
                              COUNTYCD=as.numeric(sapply(strsplit(GRP1,"_"),"[[",2)),
                              STATECD=13))|>
@@ -465,15 +484,69 @@ EVALIDATOR <- rbind(EVALIDATOR_122024$estimates|>
 CustomEstimate |> 
   mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
   left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
-  select(EVAL_GRP,PLOT_COUNT,estimate_cust,estimate_orig,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
-  kable(format='html')|>
-  kable_styling() |>
-  scroll_box(width='100%')
-
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  select(EVAL_GRP,WindZone,COUNTYCD,PLOT_COUNT,estimate_cust,estimate_EVALIDATOR,estimate_percentdiff,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>head()|>
+  kable()
+```
+```{r evalidate_county_wind_fulltable,eval=TRUE,message=FALSE,results='asis',echo=FALSE}
+cat("<details><summary>Show full table</summary>\n\n")
+##  join to our values and compare
+print(CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  select(EVAL_GRP,WindZone,COUNTYCD,PLOT_COUNT,estimate_cust,estimate_EVALIDATOR,estimate_percentdiff,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable())
+cat("\n</details>")
 ```
 
-Again, our values for the plots in each wind zone and in each county is very simliar to that returned by EVALIDATOR.
+# Test 6: Partial Evaluation With Custom Strata-County & Wind Zones
+For our final trick, we will see if we can pull partial evaluations for the custom strata and compare those to EVALIDATOR. Again, for these we would expect the estimates to be similar but the variances and sampling errors should be more, since we are working with less plots.
 
+```{r evalidate_county_wind_partial,eval=TRUE,message=FALSE,results='asis'}
+
+##  now get our custom estimate
+##  this time we include both the county and the wind zone
+CustomEstimate <- Custom_Evalidate(plots_geo |> filter(INVYR%in%c(2024)),grps=c("COUNTYCD","WindZone"),EVALGRPS = c(122024,132024),EVALIDS=c(122401,132401))
+
+###  our EVALIDATOR numbers havent changed, so no need to rerun those
+##  join to our values and compare
+CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  select(EVAL_GRP,COUNTYCD,WindZone,PLOT_COUNT,estimate_cust,estimate_EVALIDATOR,estimate_percentdiff,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>head()|>
+  kable()
+
+```
+```{r evalidate_county_wind_partial_fulltable,eval=TRUE,message=FALSE,results='asis',echo=FALSE}
+cat("<details><summary>Show full table</summary>\n\n")
+##  join to our values and compare
+print(CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  select(EVAL_GRP,COUNTYCD,WindZone,PLOT_COUNT,estimate_cust,estimate_EVALIDATOR,estimate_percentdiff,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable())
+cat("\n</details>")
+```
+
+Here, we see that although the estimates are similar, with the median percent difference being ~2%, the maximum can as much as ~350%. These higher values are for strata (wind zone & county) that have relatively few plots because they have only been measured in one year. If we continue to add additional INVYRs, the percent differences slowly decrease and the values eventually converge again after about 3-4 INVYR inclusions. 
+
+Further, if we sum the estimates into larger groups, such as the total wind zones, they converge again on the EVALIDATOR estimates, coming within a few percentage points in most cases. 
+
+```{r evalidate_county_wind_partial_aggregate,eval=TRUE,message=FALSE}
+CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
+  group_by(EVAL_GRP,WindZone)|>
+  summarise(estimate_cust=sum(estimate_cust,na.rm=TRUE),estimate_EVALIDATOR=sum(estimate_EVALIDATOR,na.rm=TRUE))|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  kable(format='html')|>
+  kable_styling() |>
+  scroll_box(width='600px',height='400px')
+
+```
 
 Our custom function is modeled after the following SQL code. 
 ```{r db_est,cache=TRUE,warning=FALSE,message=FALSE,eval=FALSE}
