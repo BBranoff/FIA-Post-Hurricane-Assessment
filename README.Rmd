@@ -31,13 +31,14 @@ We are using hurricane Helene from 2024 as an example, but the idea is that this
 * [Load Plots](#Load-Plots-From-FIAdb)
 * [EXPNS Approximation](#EXPNS-Factor-Breakdown)
 * [Custom Evalidate Function](#Custom-Evalidate-Function)
-* [Test 1: Full Evaluation](#Test-1:-Full-Evaluation)
-* [Test 2: Partial Evaluation](#Test-2:-Partial-Evaluation)
-* [Test 3: Custom Strata-Counties](#Test-3:-Custom-Strata-Counties)
+* [Test 1: Full Evaluation](#Test-1)
+* [Test 2: Partial Evaluation](#Test-2)
+* [Test 3: Custom Strata-Counties](#Test-3)
 * [Hurricane Helene Wind Zones](#Hurricane-Helene-Wind-Zones)
-* [Test 4: Custom Strata-Wind Zones](#Test-4:-Custom-Strata-Wind-Zones)
-* [Test 5: Custom Strata-County & Wind Zones](#Test-5:-Custom-Strata-County-&-Wind-Zones)
-* [Test 6: Partial Evaluation With Custom Strata-County & Wind Zones](Test-6:-Partial-Evaluation-With-Custom-Strata-County-&-Wind Zones)
+* [Test 4: Custom Strata-Wind Zones](#Test-4)
+* [Test 5: Custom Strata-County & Wind Zones](#Test-5)
+* [Test 6: Partial Evaluation With Custom Strata-County & Wind Zones](#Test-6)
+* [SQL Code](#SQL-Code)
 
 # Load Plots From FIAdb
 Start by loading the plots from nims_srs_db.   Here, using the DBI library, which requires some initial setup for successful credentialed connections to the db.
@@ -120,7 +121,7 @@ When working with less than a full evaluation, the expansion factors for should 
 # Custom Evalidate Function
 As a proof of concept, we use the original expansion factor (EXPNS) and sum everything within an EVAL_GRP. This should be equivalent to what is computed by EVALIDATOR. To check, we use the API to retrieve the EVALIDATOR estimate and compare it to ours. We also do the same calculation for a full evaluation but using our custom EXPNS value. Finally, we do it for a partial evaluation using the custom EXPNS and compare it to the full evaluations. Again, if we have done it right, the estimate for forested acres from a partial evaluation should be close to that from a full evaluation.
 
-To avoid repeating the same code every time, the below section demonstrates how these calculations are done and it saves the method as a custom function called 'Custom_Evalidate', which we can call anytime we want to do it. This function is interpreted from the SQL_QUERY value of the REF_POP_ATTRIBUTE table. By doing it this way, we are getting as close as possible to the method employed by FIA. 
+To avoid repeating the same code every time, the below section demonstrates how these calculations are done and it saves the method as a custom function called 'Custom_Evalidate', which we can call anytime we want to do it. This function is interpreted from the SQL_QUERY value of the REF_POP_ATTRIBUTE table. This is provided at [the bottom of this page](#SQL-Code). By doing it this way, we are getting as close as possible to the method employed by FIA. 
 
 ```{r evalidate_custom,eval=TRUE}
 
@@ -220,7 +221,7 @@ estimate |>ungroup()
 }
 ```
 
-# Test 1: Full Evaluation
+# Test 1: Full Evaluation {#Test1}
 Now that we have the methods saved as a custom function, we can use it to compare against EVALIDATOR.  Below, we calculate the full Florida and Georgia evaluations from 2024. These evaluations include plots that were measured roughly anytime in the previous five years (2017-2025). For reference, Hurricane Helene hit these states in 2024, so querying plots after it hit will be a partial evaluation. First though, a full evaluation to test the custom calculation. 
 
 To compare our estimates with 'official' numbers from FIA, we use the FIA EVALIDATOR API. These functions (fiadb_api_GET) are are taken directly from the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). 
@@ -255,7 +256,7 @@ We can see from the above table that our custom values are fairly close to the o
 
 Any deviations in the above table are a direct result of substituting the plot ratio for the pixel ratio in the expansion factor calculation. 
 
-# Test 2: Partial Evaluation
+# Test 2: Partial Evaluation {#Test2}
 Now, we can try a partial evaluation. Here, we start by only including plots that were measured one year before Helene. We do this by inventory year (INVYR) because each INVYR should have a nice even representation across the strata. Previous attempts to do this by exact dates did not work well because the strata were unevenly represented.
 
 There is no reason to think acreage would change substantially before or after Helene, but we want to demonstrate whether calculations from a partial evaluation can get close to those from a full EVALIDATOR evaluation.
@@ -282,7 +283,7 @@ CustomEstimate |>
 
 Again, our estimate is close. So, we have now demonstrated that we can use the Custom_Evalidate function to provide a close estimate of a full or even partial evaluation by using the plot ratio instead of the pixel ratio for the expansion factor. 
 
-# Test 3: Custom Strata-Counties
+# Test 3: Custom Strata-Counties {#Test3}
 We can now attempt to do this for partial or custom strata. This will be useful for providing estimates in areas that are otherwise not demarcated within fiadb, such as hurricane wind intensity zones, burned areas, or other disturbance zones.
 
 To start, we use a commonly requested grouping that is already in the database: Counties. Primarily as a check to make sure the 'Custom_Evalidate()' function will work with a specific grouping and whether it will match EVALIDATOR. 
@@ -390,7 +391,7 @@ The Helene hurricane data is now processed and ready for overlays with the plots
 With the hurricane intensity areas defined, we can assign them to each plot. We also need to define the area of each wind zone. 
 These will be our artificial 'strata', and we will need to know the total area in order to calculate the expansion factors. This is done two ways. The first is using vectors (shapefiles) of the strata and the 'st_area()' function to calculate the areas. The second is using the raster image and counting the number of pixels in each strata, then multiplying by the resolution to get total area. 
 
-# Test 4: Custom Strata-Wind Zones
+# Test 4: Custom Strata-Wind Zones {#Test4}
 
 We now have the plots and the areas associated with each wind zone. From here, we can begin to assemble the
 necessary tables and calculate the desired estimates. 
@@ -449,7 +450,7 @@ CustomEstimate |>
 
 Again, our values for the plots in each wind zone and in each county is very similar to that returned by EVALIDATOR. We can also include county in the grouping, but here we have to be a little tricky in how we construct the "zones" for the EVALIDATOR API call. To do this, we combine wind zone and county into one grup title, separated by a "_".
 
-# Test 5: Custom Strata-County & Wind Zones
+# Test 5: Custom Strata-County & Wind Zones {#Test5}
 
 ```{r evalidate_county_wind,eval=TRUE,message=FALSE}
 ##  now get our custom estimate
@@ -500,7 +501,7 @@ print(CustomEstimate |>
 cat("\n</details>")
 ```
 
-# Test 6: Partial Evaluation With Custom Strata-County & Wind Zones
+# Test 6: Partial Evaluation With Custom Strata-County & Wind Zones {#Test6}
 For our final trick, we will see if we can pull partial evaluations for the custom strata and compare those to EVALIDATOR. Again, for these we would expect the estimates to be similar but the variances and sampling errors should be more, since we are working with less plots.
 
 ```{r evalidate_county_wind_partial,eval=TRUE,message=FALSE,results='asis'}
@@ -548,6 +549,7 @@ CustomEstimate |>
 
 ```
 
+# SQL Custom Function
 Our custom function is modeled after the following SQL code. 
 ```{r db_est,cache=TRUE,warning=FALSE,message=FALSE,eval=FALSE}
 library(DBI)

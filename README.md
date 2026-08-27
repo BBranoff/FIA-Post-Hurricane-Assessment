@@ -29,15 +29,15 @@ on Florida and Georgia.
 - [Load Plots](#Load-Plots-From-FIAdb)
 - [EXPNS Approximation](#EXPNS-Factor-Breakdown)
 - [Custom Evalidate Function](#Custom-Evalidate-Function)
-- [Test 1: Full Evaluation](#Test-1:-Full-Evaluation)
-- [Test 2: Partial Evaluation](#Test-2:-Partial-Evaluation)
-- [Test 3: Custom Strata-Counties](#Test-3:-Custom-Strata-Counties)
+- [Test 1: Full Evaluation](#Test-1)
+- [Test 2: Partial Evaluation](#Test-2)
+- [Test 3: Custom Strata-Counties](#Test-3)
 - [Hurricane Helene Wind Zones](#Hurricane-Helene-Wind-Zones)
-- [Test 4: Custom Strata-Wind Zones](#Test-4:-Custom-Strata-Wind-Zones)
-- [Test 5: Custom Strata-County & Wind
-  Zones](#Test-5:-Custom-Strata-County-&-Wind-Zones)
+- [Test 4: Custom Strata-Wind Zones](#Test-4)
+- [Test 5: Custom Strata-County & Wind Zones](#Test-5)
 - [Test 6: Partial Evaluation With Custom Strata-County & Wind
-  Zones](Test-6:-Partial-Evaluation-With-Custom-Strata-County-&-Wind%20Zones)
+  Zones](#Test-6)
+- [SQL Code](#SQL-Code)
 
 # Load Plots From FIAdb
 
@@ -1276,8 +1276,9 @@ To avoid repeating the same code every time, the below section
 demonstrates how these calculations are done and it saves the method as
 a custom function called ‘Custom_Evalidate’, which we can call anytime
 we want to do it. This function is interpreted from the SQL_QUERY value
-of the REF_POP_ATTRIBUTE table. By doing it this way, we are getting as
-close as possible to the method employed by FIA.
+of the REF_POP_ATTRIBUTE table. This is provided at [the bottom of this
+page](#SQL-Code). By doing it this way, we are getting as close as
+possible to the method employed by FIA.
 
 ``` r
 ###  first, define our custom function
@@ -15854,6 +15855,8 @@ NaN
 </table>
 
 </div>
+
+# SQL Custom Function
 
 Our custom function is modeled after the following SQL code.
 
