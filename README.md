@@ -29,7 +29,7 @@ on Florida and Georgia.
 - [Load Plots](#Load-Plots-From-FIAdb)
 - [EXPNS Approximation](#EXPNS-Factor-Breakdown)
 - [Custom Evalidate Function](#Custom-Evalidate-Function)
-- [Test 1: Full Evaluation](#Test1)
+- [Test 1: Full Evaluation](#Test-1-Full-Evaluation)
 - [Test 2: Partial Evaluation](#Test2)
 - [Test 3: Custom Strata-Counties](#Test3)
 - [Hurricane Helene Wind Zones](#Hurricane-Helene-Wind-Zones)
@@ -37,7 +37,7 @@ on Florida and Georgia.
 - [Test 5: Custom Strata-County & Wind Zones](#Test5)
 - [Test 6: Partial Evaluation With Custom Strata-County & Wind
   Zones](#Test6)
-- [SQL Code](#SQL-Custom-Function)
+- [SQL Code](#SQL-CustomFunction)
 
 # Load Plots From FIAdb
 

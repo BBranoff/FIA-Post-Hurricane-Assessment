@@ -31,14 +31,14 @@ We are using hurricane Helene from 2024 as an example, but the idea is that this
 * [Load Plots](#Load-Plots-From-FIAdb)
 * [EXPNS Approximation](#EXPNS-Factor-Breakdown)
 * [Custom Evalidate Function](#Custom-Evalidate-Function)
-* [Test 1: Full Evaluation](#Test1)
+* [Test 1: Full Evaluation](#Test-1-Full-Evaluation)
 * [Test 2: Partial Evaluation](#Test2)
 * [Test 3: Custom Strata-Counties](#Test3)
 * [Hurricane Helene Wind Zones](#Hurricane-Helene-Wind-Zones)
 * [Test 4: Custom Strata-Wind Zones](#Test4)
 * [Test 5: Custom Strata-County & Wind Zones](#Test5)
 * [Test 6: Partial Evaluation With Custom Strata-County & Wind Zones](#Test6)
-* [SQL Code](#SQL-Custom-Function)
+* [SQL Code](#SQL-CustomFunction)
 
 # Load Plots From FIAdb
 Start by loading the plots from nims_srs_db.   Here, using the DBI library, which requires some initial setup for successful credentialed connections to the db.
@@ -221,7 +221,7 @@ estimate |>ungroup()
 }
 ```
 
-# Test 1: Full Evaluation {#Test1}
+# Test 1: Full Evaluation
 Now that we have the methods saved as a custom function, we can use it to compare against EVALIDATOR.  Below, we calculate the full Florida and Georgia evaluations from 2024. These evaluations include plots that were measured roughly anytime in the previous five years (2017-2025). For reference, Hurricane Helene hit these states in 2024, so querying plots after it hit will be a partial evaluation. First though, a full evaluation to test the custom calculation. 
 
 To compare our estimates with 'official' numbers from FIA, we use the FIA EVALIDATOR API. These functions (fiadb_api_GET) are are taken directly from the [FIA EVALIDATOR API instructions](https://apps.fs.usda.gov/fiadb-api/). 
