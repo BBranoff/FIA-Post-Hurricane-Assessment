@@ -146,7 +146,8 @@ plts <- plts |>
   group_by(STRATUM_CN)|>
   mutate(nplots=length(unique(CN)),
          plotratio = nplots/nplots_EU2, 
-         EXPNS2 = PixelRatio*(AREA_USED/nplots)) 
+         EXPNS2 = PixelRatio*(AREA_USED/nplots),
+         EXPNS3 = EXPNS2/(plotratio/PixelRatio)) 
 
 ###  now, simulating the SQL query from ref_pop_attribute
 ###  first, the plot level adjustment factors
@@ -275,7 +276,8 @@ CustomEstimate |>
   mutate(estimate_EVALIDATOR = as.numeric(c(EVALID_122024$totals$ESTIMATE,EVALID_132024$totals$ESTIMATE)),
          variance_EVALIDATOR= as.numeric(c(EVALID_122024$totals$VARIANCE,EVALID_132024$totals$VARIANCE)),
          SEperc_EVALIDATOR= as.numeric(c(EVALID_122024$totals$SE_PERCENT,EVALID_132024$totals$SE_PERCENT)))|>
-  select(EVAL_GRP,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  select(EVAL_GRP,estimate_cust,estimate_EVALIDATOR,estimate_percentdiff,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
   kable(format='html')|>
   kable_styling() |>
   scroll_box(width='100%')
@@ -313,11 +315,18 @@ CustomEstimate |>
   mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
   left_join(EVALID_COUNTYCD,by=join_by(STATECD,COUNTYCD))|>
   select(STATECD,COUNTYCD,EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
-  kable(format='html')|>
-  kable_styling() |>
-  scroll_box(width='100%',height='400px')
+  kable()|>head()
 ```
-
+```{r evalidate_demo_counties_fulltable,eval=TRUE,message=FALSE,results='asis',echo=FALSE}
+cat("<details><summary>Show full table</summary>\n\n")
+##  join to our values and compare
+print(CustomEstimate |>
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALID_COUNTYCD,by=join_by(STATECD,COUNTYCD))|>
+  select(STATECD,COUNTYCD,EVAL_GRP,estimate_orig,estimate_cust,estimate_EVALIDATOR,variance_cust,variance_EVALIDATOR,SEperc_cust,SEperc_EVALIDATOR)|>
+  kable())
+cat("\n</details>")
+```
 ```{r evalidate_demo1_plot,eval=TRUE,ech=FALSE,message=FALSE}
 test <- CustomEstimate |>
   mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
@@ -543,11 +552,22 @@ CustomEstimate |>
   group_by(EVAL_GRP,WindZone)|>
   summarise(estimate_cust=sum(estimate_cust,na.rm=TRUE),estimate_EVALIDATOR=sum(estimate_EVALIDATOR,na.rm=TRUE))|>
   mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
-  kable(format='html')|>
-  kable_styling() |>
-  scroll_box(width='600px',height='400px')
-
+  kable()
 ```
+
+Summing again to the whole state, we see that the total acreage is much closer, as some counties were over-estimated and others were under-estimated
+
+```{r evalidate_county_wind_partial_aggregate2,eval=TRUE,message=FALSE}
+CustomEstimate |> 
+  mutate(STATECD=as.numeric(substr(EVAL_GRP,1,2)))|>
+  left_join(EVALIDATOR,by=join_by(STATECD,COUNTYCD,WindZone))|>
+  group_by(EVAL_GRP)|>
+  summarise(estimate_cust=sum(estimate_cust,na.rm=TRUE),estimate_EVALIDATOR=sum(estimate_EVALIDATOR,na.rm=TRUE))|>
+  mutate(estimate_percentdiff = 100*(estimate_cust-estimate_EVALIDATOR)/estimate_EVALIDATOR)|>
+  kable()
+```
+
+
 
 # SQL Custom Function
 Our custom function is modeled after the following SQL code. 
