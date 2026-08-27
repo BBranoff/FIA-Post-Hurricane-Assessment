@@ -35,9 +35,9 @@ on Florida and Georgia.
 - [Hurricane Helene Wind Zones](#Hurricane-Helene-Wind-Zones)
 - [Test 4: Custom Strata-Wind Zones](#Test-4-Custom-Strata-Wind-Zones)
 - [Test 5: Custom Strata-County & Wind
-  Zones](#Test-5-Custom-Strata-County-&-Wind-Zones)
+  Zones](#Test-5-Custom-Strata-County--Wind-Zones)
 - [Test 6: Partial Evaluation With Custom Strata-County & Wind
-  Zones](#Test-6-Partial-Evaluation-With-Custom-Strata-County-&-Wind-Zones)
+  Zones](#Test-6-Partial-Evaluation-With-Custom-Strata-County--Wind-Zones)
 - [SQL Code](#SQL-CustomFunction)
 
 # Load Plots From FIAdb
